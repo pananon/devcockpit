@@ -21,8 +21,6 @@ interface Props {
 }
 
 const MIN_HEIGHT = 160;
-/** Space always left for the page above, so the dock can never cover the whole stage. */
-const MIN_PAGE = 40;
 
 export function TerminalDock({ tabs, active, open, height, onHeight, onSelect, onClose, onNew, onHide }: Props) {
   const dock = useRef<HTMLElement>(null);
@@ -42,7 +40,8 @@ export function TerminalDock({ tabs, active, open, height, onHeight, onSelect, o
     return () => ro.disconnect();
   }, []);
 
-  const max = Math.max(MIN_HEIGHT, room - MIN_PAGE);
+  // Maximised fills the whole stage; the tab bar stays on top with restore and close.
+  const max = Math.max(MIN_HEIGHT, room);
   const shown = Math.min(Math.max(height, MIN_HEIGHT), max);
   const maximised = shown >= max - 1;
 
