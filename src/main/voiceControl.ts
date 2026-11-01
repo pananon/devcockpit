@@ -1,10 +1,13 @@
 // Voice session state: the global hotkey, the floating "Listening" pill, and
 // where the transcribed text goes (into DevCockpit, or pasted into the front app).
 import { BrowserWindow, globalShortcut, screen } from 'electron';
+import path from 'node:path';
 import type { VoiceState } from '@shared/types';
 import { getSettings } from './config';
 import { pasteIntoForeground } from './paste';
+import { findRepos } from './repos';
 import { transcribe } from './voice';
+import { correctVocabulary } from './vocabulary';
 
 let main: BrowserWindow | null = null;
 let pill: BrowserWindow | null = null;
@@ -89,7 +92,9 @@ export async function handleAudio(audio: Float32Array): Promise<{ text: string; 
   const s = getSettings();
   try {
     setState({ phase: 'working', message: 'Transcribing…' });
-    const text = await transcribe(audio, s.voiceModel, s.voiceLanguage, (message) => setState({ phase: 'working', message }));
+    const raw = await transcribe(audio, s.voiceModel, s.voiceLanguage, (message) => setState({ phase: 'working', message }));
+    const vocabulary = [...findRepos(s.projectRoots).map((r) => path.basename(r)), ...s.voiceVocabulary];
+    const text = correctVocabulary(raw, vocabulary);
     let pasted = false;
     if (text && target === 'foreground') pasted = await pasteIntoForeground(text);
     setState({ phase: 'idle', message: '' });

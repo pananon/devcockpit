@@ -1,11 +1,9 @@
 import type { Actions, Data } from '../App';
-import { AiOutput } from '../components/AiOutput';
-import { useAi } from '../useAi';
+import { BriefCard } from '../components/BriefCard';
 import { ago, baseName, samePath } from '../util';
 
 export function Today({ data, actions }: { data: Data; actions: Actions }) {
   const { repos, sessions, prs } = data;
-  const brief = useAi();
   const recent = (sessions ?? []).slice(0, 6);
   const dirty = (repos ?? []).filter((r) => r.uncommitted.length || r.ahead || r.behind);
   const todos = (repos ?? []).flatMap((r) => r.todos.map((t) => ({ ...t, repo: r }))).slice(0, 8);
@@ -29,23 +27,7 @@ export function Today({ data, actions }: { data: Data; actions: Actions }) {
         </div>
       </header>
 
-      <section className="card">
-        <div className="row">
-          <h3 className="grow" style={{ margin: 0 }}>
-            Morning brief <span className="muted">· local model, no tokens</span>
-          </h3>
-          {brief.running ? (
-            <button className="btn small" onClick={brief.stop}>
-              Stop
-            </button>
-          ) : (
-            <button className="btn small" onClick={() => brief.start({ kind: 'brief' })}>
-              {brief.text ? 'Regenerate' : 'Generate'}
-            </button>
-          )}
-        </div>
-        <AiOutput {...brief} />
-      </section>
+      <BriefCard actions={actions} />
 
       <div className="stats">
         <Stat label="Repos with changes" value={repos ? dirty.length : '…'} onClick={() => actions.go('repos')} />

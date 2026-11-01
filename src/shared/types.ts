@@ -72,9 +72,15 @@ export interface Settings {
   voiceLanguage: string;
   /** Electron accelerator for push-to-talk, or null to disable */
   voiceHotkey: string | null;
+  /** stop recording automatically after a pause */
+  voiceAutoStop: boolean;
+  /** extra words to recognise (repo names are always included) */
+  voiceVocabulary: string[];
 }
 
 export type VoiceModel = 'base' | 'small' | 'turbo';
+
+export type VoiceSettings = Pick<Settings, 'voiceModel' | 'voiceLanguage' | 'voiceHotkey' | 'voiceAutoStop' | 'voiceVocabulary'>;
 
 export interface VoiceState {
   phase: 'idle' | 'listening' | 'working' | 'error';
@@ -152,7 +158,29 @@ export interface PullProgress {
   error?: string;
 }
 
-export type AiTask = { kind: 'summarize'; sessionId: string } | { kind: 'brief' } | { kind: 'ask'; prompt: string };
+export type AiTask = { kind: 'summarize'; sessionId: string } | { kind: 'ask'; prompt: string };
+
+export interface BriefRef {
+  kind: 'repo' | 'pr' | 'session';
+  /** repo path, PR url, or session id */
+  id: string;
+  label: string;
+}
+
+export interface BriefItem {
+  action: string;
+  ref: BriefRef;
+  /** the fact this priority is based on, shown on hover */
+  fact: string;
+}
+
+export interface Brief {
+  recent: { repo: string; titles: string[] }[];
+  focus: BriefItem[];
+  model: string | null;
+  /** false when priorities came from the rule-based fallback */
+  usedModel: boolean;
+}
 
 export interface AiEvent {
   taskId: string;
@@ -189,7 +217,8 @@ export interface CockpitApi {
   runAi(task: AiTask): Promise<string>;
   cancelAi(taskId: string): void;
   onAiEvent(cb: (e: AiEvent) => void): () => void;
-  setVoiceSettings(v: Partial<Pick<Settings, 'voiceModel' | 'voiceLanguage' | 'voiceHotkey'>>): Promise<Settings & { voiceHotkeyActive: boolean }>;
+  buildBrief(): Promise<Brief>;
+  setVoiceSettings(v: Partial<VoiceSettings>): Promise<Settings & { voiceHotkeyActive: boolean }>;
   voiceRecording(recording: boolean, fromHotkey: boolean): void;
   voiceTranscribe(audio: Float32Array): Promise<{ text: string; pasted: boolean }>;
   onVoiceCommand(cb: (cmd: 'start' | 'stop') => void): () => void;

@@ -36,6 +36,7 @@ const api: CockpitApi = {
   runAi: (task) => ipcRenderer.invoke('ai:run', task),
   cancelAi: (id) => ipcRenderer.send('ai:cancel', id),
   onAiEvent: (cb) => listen('ai:event', cb),
+  buildBrief: () => ipcRenderer.invoke('ai:brief'),
   setVoiceSettings: (v) => ipcRenderer.invoke('settings:setVoice', v),
   voiceRecording: (recording, fromHotkey) => ipcRenderer.send('voice:recording', recording, fromHotkey),
   voiceTranscribe: (audio) => ipcRenderer.invoke('voice:transcribe', audio),

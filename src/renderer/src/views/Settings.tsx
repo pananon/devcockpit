@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Settings, VoiceModel } from '@shared/types';
+import type { VoiceModel, VoiceSettings } from '@shared/types';
 import type { Actions } from '../App';
 
 const VOICE_MODELS: { id: VoiceModel; label: string }[] = [
@@ -10,21 +10,29 @@ const VOICE_MODELS: { id: VoiceModel; label: string }[] = [
 const LANGUAGES = ['english', 'hindi', 'auto', 'spanish', 'french', 'german', 'portuguese', 'japanese', 'chinese'];
 const DEFAULT_HOTKEY = 'CommandOrControl+Shift+Space';
 
+const pickVoice = (s: VoiceSettings): VoiceSettings => ({
+  voiceModel: s.voiceModel,
+  voiceLanguage: s.voiceLanguage,
+  voiceHotkey: s.voiceHotkey,
+  voiceAutoStop: s.voiceAutoStop,
+  voiceVocabulary: s.voiceVocabulary,
+});
+
 export function SettingsView({ actions, onHotkey }: { actions: Actions; onHotkey: (h: string | null) => void }) {
   const [roots, setRoots] = useState<string[] | null>(null);
-  const [voice, setVoice] = useState<Pick<Settings, 'voiceModel' | 'voiceLanguage' | 'voiceHotkey'> | null>(null);
+  const [voice, setVoice] = useState<VoiceSettings | null>(null);
   const [hotkeyOk, setHotkeyOk] = useState(true);
 
   useEffect(() => {
     window.cockpit.getSettings().then((s) => {
       setRoots(s.projectRoots);
-      setVoice({ voiceModel: s.voiceModel, voiceLanguage: s.voiceLanguage, voiceHotkey: s.voiceHotkey });
+      setVoice(pickVoice(s));
     });
   }, []);
 
-  const saveVoice = async (patch: Partial<Pick<Settings, 'voiceModel' | 'voiceLanguage' | 'voiceHotkey'>>) => {
+  const saveVoice = async (patch: Partial<VoiceSettings>) => {
     const s = await window.cockpit.setVoiceSettings(patch);
-    setVoice({ voiceModel: s.voiceModel, voiceLanguage: s.voiceLanguage, voiceHotkey: s.voiceHotkey });
+    setVoice(pickVoice(s));
     setHotkeyOk(s.voiceHotkey == null || s.voiceHotkeyActive);
     onHotkey(s.voiceHotkeyActive ? s.voiceHotkey : null);
   };
@@ -82,6 +90,19 @@ export function SettingsView({ actions, onHotkey }: { actions: Actions; onHotkey
               {!hotkeyOk && <span className="warn-text small">That shortcut is taken by another app or isn't valid. Try another, e.g. Alt+Shift+D.</span>}
             </div>
           )}
+          <label className="check big">
+            <input type="checkbox" checked={voice.voiceAutoStop} onChange={(e) => saveVoice({ voiceAutoStop: e.target.checked })} />
+            Stop automatically when I pause (otherwise press the shortcut again)
+          </label>
+          <div className="field">
+            <span className="muted small">Extra words to recognise, comma-separated. Your repo names are already included.</span>
+            <input
+              className="input"
+              placeholder="e.g. Supabase, RevenueCat, Expo"
+              defaultValue={voice.voiceVocabulary.join(', ')}
+              onBlur={(e) => saveVoice({ voiceVocabulary: e.target.value.split(',').map((w) => w.trim()).filter(Boolean) })}
+            />
+          </div>
           <div className="field">
             <span className="muted small">Speech model (runs on your machine, downloaded on first use)</span>
             <select className="input" value={voice.voiceModel} onChange={(e) => saveVoice({ voiceModel: e.target.value as VoiceModel })}>

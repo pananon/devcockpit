@@ -2,21 +2,21 @@
 
 **The cockpit for your dev day.** One desktop app that shows everything you're working on locally: every repo, every Claude Code session, every open pull request. Resume any session in the built-in terminal with one click.
 
-> Status: early development (Phase 2). Not released yet.
+> Status: early development (Phase 3 next). Not released yet.
 
 ## What it does
 
-- **Today**: a quick overview of where to start. It picks the session you were last on, lists repos with uncommitted or unpushed work, PRs waiting for your review, and open to-dos.
+- **Today**: a quick overview of where to start. Your brief lists three priorities, each linked to the repo, PR or session it comes from. The facts are taken straight from git, your sessions and GitHub, and the local model only ranks them, so nothing is made up. It works without a model too.
 - **Repos**: every git repo in your project folders, with branch, changes, ahead/behind, recent commits, to-dos (from `TODO.md`, `actions.md` and `ROADMAP.md`), and the sessions and PRs that belong to it.
 - **Sessions**: all your Claude Code sessions, grouped by repo and searchable by full text. Read any transcript, or **Resume** it in the right folder.
 - **Pull requests**: yours, the ones waiting for your review, and recently merged ones, across every repo. Uses your existing `gh` login.
 - **Built-in terminal**: real Claude Code and shell tabs inside the app (`Ctrl+\``).
-- **Voice**: press `Ctrl+Shift+Space` in any app, speak, press it again, and the text is pasted where your cursor is. Inside DevCockpit it goes into the focused box or the active terminal. Whisper runs locally, on your GPU when one is available.
+- **Voice**: press `Ctrl+Shift+Space` in any app and speak. It stops when you pause and pastes the text where your cursor is. Your repo names are recognised even when Whisper mishears them. Inside DevCockpit it goes into the focused box or the active terminal. Whisper runs locally, on your GPU when one is available.
 - **Local AI**: one click checks your CPU, RAM and GPU and recommends the best model your machine can run through [Ollama](https://ollama.com). Use it for a morning brief, session summaries and quick questions, without spending Claude tokens.
 
 ## Roadmap
 
-- **Phase 2 (in progress):** hold-to-talk mode, custom vocabulary (your repo names) for better transcription, and markdown rendering for transcripts.
+- **Phase 2 (done):** voice with hands-free auto-stop and hold-to-talk, automatic correction of your repo names, a fact-grounded daily brief, and formatted transcripts.
 - **Phase 3:** an email assistant (sorts email, finds job invites, writes drafts and never sends them), plus schedules and routines.
 - **Phase 4:** signed installers for Windows, macOS and Linux, and a demo mode.
 

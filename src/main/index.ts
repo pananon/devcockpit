@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { AiTask, Settings, TerminalSpec, VoiceModel } from '@shared/types';
 import { getSettings, saveSettings } from './config';
+import { buildBrief } from './brief';
 import { buildReport, isValidTag } from './models';
 import * as ollama from './ollama';
 import { startOllama } from './ollamaInstall';
@@ -121,9 +122,7 @@ function registerIpc() {
     const clean: AiTask =
       task?.kind === 'summarize'
         ? { kind: 'summarize', sessionId: str(task.sessionId, 64) }
-        : task?.kind === 'brief'
-          ? { kind: 'brief' }
-          : { kind: 'ask', prompt: str((task as { prompt?: unknown })?.prompt, 20000) };
+        : { kind: 'ask', prompt: str((task as { prompt?: unknown })?.prompt, 20000) };
     const taskId = randomUUID();
     const send = (e: object) => win?.webContents.send('ai:event', { taskId, ...e });
     const status = await ollama.status();
@@ -136,17 +135,22 @@ function registerIpc() {
         .catch((e) => send({ done: true, error: e?.name === 'AbortError' ? 'Stopped' : String(e?.message ?? e) }));
     return taskId;
   });
+  handle('ai:brief', () => buildBrief());
   on('ai:cancel', (id: unknown) => ollama.cancelChat(str(id, 64)));
 
   // Voice
   const VOICE_MODELS: VoiceModel[] = ['base', 'small', 'turbo'];
-  handle('settings:setVoice', (v: { voiceModel?: unknown; voiceLanguage?: unknown; voiceHotkey?: unknown }) => {
+  handle('settings:setVoice', (v: { voiceModel?: unknown; voiceLanguage?: unknown; voiceHotkey?: unknown; voiceAutoStop?: unknown; voiceVocabulary?: unknown }) => {
     const cur = getSettings();
     const next: Settings = {
       ...cur,
       voiceModel: VOICE_MODELS.includes(v?.voiceModel as VoiceModel) ? (v.voiceModel as VoiceModel) : cur.voiceModel,
       voiceLanguage: v?.voiceLanguage !== undefined ? str(v.voiceLanguage, 32) : cur.voiceLanguage,
       voiceHotkey: v?.voiceHotkey === null ? null : v?.voiceHotkey !== undefined ? str(v.voiceHotkey, 64) : cur.voiceHotkey,
+      voiceAutoStop: typeof v?.voiceAutoStop === 'boolean' ? v.voiceAutoStop : cur.voiceAutoStop,
+      voiceVocabulary: Array.isArray(v?.voiceVocabulary)
+        ? [...new Set(v.voiceVocabulary.map((w) => str(w, 64).trim()).filter(Boolean))].slice(0, 200)
+        : cur.voiceVocabulary,
     };
     saveSettings(next);
     const active = applyHotkey();

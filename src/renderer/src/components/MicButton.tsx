@@ -1,14 +1,39 @@
+import { useRef } from 'react';
 import type { VoiceState } from '@shared/types';
 
-export function MicButton({ state, onToggle, hotkey }: { state: VoiceState; onToggle: () => void; hotkey: string | null }) {
-  const label = state.phase === 'listening' ? 'Stop and transcribe' : state.phase === 'working' ? state.message : 'Dictate';
+interface Props {
+  state: VoiceState;
+  onPress: () => void;
+  onRelease: (heldMs: number) => void;
+  hotkey: string | null;
+}
+
+/** Hold to talk (release to transcribe), or click to start hands-free. */
+export function MicButton({ state, onPress, onRelease, hotkey }: Props) {
+  // Event timestamps, not Date.now(): opening the mic can block the UI thread, and a
+  // quick click handled late must not look like a long hold.
+  const downAt = useRef(0);
+  const up = (e: React.PointerEvent) => {
+    if (!downAt.current) return;
+    const held = e.timeStamp - downAt.current;
+    downAt.current = 0;
+    onRelease(held);
+  };
+  const label = state.phase === 'listening' ? 'Stop and transcribe' : state.phase === 'working' ? state.message : 'Dictate (hold to talk, or click)';
   return (
     <button
       className={`mic ${state.phase}`}
-      onMouseDown={(e) => e.preventDefault() /* keep focus in the field we're dictating into */}
-      onClick={onToggle}
+      onPointerDown={(e) => {
+        e.preventDefault(); // keep focus in the field we're dictating into
+        if (state.phase === 'working') return;
+        downAt.current = e.timeStamp;
+        onPress();
+      }}
+      onPointerUp={up}
+      onPointerLeave={up}
+      onPointerCancel={() => (downAt.current = 0)}
       disabled={state.phase === 'working'}
-      title={hotkey ? `${label} (${hotkey.replace('CommandOrControl', 'Ctrl')} works in any app)` : label}
+      title={hotkey ? `${label}. ${hotkey.replace('CommandOrControl', 'Ctrl')} works in any app.` : label}
       aria-label={label}
     >
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden>

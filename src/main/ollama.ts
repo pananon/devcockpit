@@ -82,13 +82,19 @@ export interface ChatMessage {
 const chats = new Map<string, AbortController>();
 
 /** Streams a chat completion. Thinking output is skipped; only the answer is streamed. */
-export async function chat(taskId: string, model: string, messages: ChatMessage[], onText: (t: string) => void): Promise<void> {
+export async function chat(
+  taskId: string,
+  model: string,
+  messages: ChatMessage[],
+  onText: (t: string) => void,
+  options: Record<string, number> = {}
+): Promise<void> {
   const ctl = new AbortController();
   chats.set(taskId, ctl);
   const request = (think: boolean) =>
     fetch(`${base()}/api/chat`, {
       method: 'POST',
-      body: JSON.stringify({ model, messages, stream: true, ...(think ? { think: false } : {}), options: { num_ctx: 8192, temperature: 0.3 } }),
+      body: JSON.stringify({ model, messages, stream: true, ...(think ? { think: false } : {}), options: { num_ctx: 8192, temperature: 0.3, ...options } }),
       signal: ctl.signal,
     });
   try {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VoiceState } from '@shared/types';
-import { isRecording, startRecording, stopAndTranscribe } from './recorder';
+import { enableAutoStop, isRecording, startRecording, stopAndTranscribe } from './recorder';
 
 /**
  * Voice input inside DevCockpit. `insert` decides where text lands (focused
@@ -14,6 +14,8 @@ export function useVoice(insert: (text: string, field: TextField | null) => void
   insertRef.current = insert;
   // The field focused when dictation started: text goes there even if focus moved meanwhile.
   const fieldRef = useRef<TextField | null>(null);
+  // Opening the mic takes a moment; a quick click can be released before it's open.
+  const startingRef = useRef<Promise<void> | null>(null);
 
   const flash = (msg: string) => {
     setNotice(msg);
@@ -31,16 +33,33 @@ export function useVoice(insert: (text: string, field: TextField | null) => void
     }
   }, []);
 
-  const begin = useCallback(async (fromHotkey: boolean) => {
+  /** autoStop: undefined = use the setting; false = the caller decides (press-and-hold). */
+  const begin = useCallback(async (fromHotkey: boolean, autoStop?: boolean) => {
     fieldRef.current = focusedField();
     try {
-      await startRecording(fromHotkey);
+      const auto = autoStop ?? (await window.cockpit.getSettings()).voiceAutoStop;
+      await startRecording(fromHotkey, auto);
     } catch {
       flash('Microphone unavailable. Check Windows Settings > Privacy > Microphone.');
     }
   }, []);
 
   const toggle = useCallback(() => (isRecording() ? finish() : begin(false)), [begin, finish]);
+
+  // Mic button: press and hold to talk, or click to start hands-free.
+  const press = useCallback(() => {
+    if (isRecording()) return finish();
+    startingRef.current = begin(false, false).finally(() => (startingRef.current = null));
+  }, [begin, finish]);
+  const release = useCallback(
+    async (heldMs: number) => {
+      if (startingRef.current) await startingRef.current;
+      if (!isRecording()) return;
+      if (heldMs > 500) finish();
+      else if ((await window.cockpit.getSettings()).voiceAutoStop) enableAutoStop();
+    },
+    [finish]
+  );
 
   useEffect(() => {
     const offState = window.cockpit.onVoiceState(setState);
@@ -54,7 +73,7 @@ export function useVoice(insert: (text: string, field: TextField | null) => void
     };
   }, [begin, finish]);
 
-  return { state, notice, toggle };
+  return { state, notice, toggle, press, release };
 }
 
 export type TextField = HTMLInputElement | HTMLTextAreaElement;

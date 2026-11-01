@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { SessionSearchHit, SessionSummary, TranscriptItem } from '@shared/types';
 import type { Actions, Data } from '../App';
 import { AiOutput } from '../components/AiOutput';
+import { Markdown } from '../components/Markdown';
 import { useAi } from '../useAi';
 import { ago, baseName } from '../util';
 
@@ -148,10 +149,10 @@ function SessionDetail({ session, actions }: { session: SessionSummary; actions:
               <span className="mono">{item.name}</span> <span className="muted">{item.detail}</span>
             </div>
           ) : (
-            // Rendered as plain text: transcripts contain untrusted web/tool content.
+            // Markdown is rendered as React elements, never as HTML: transcripts contain untrusted content.
             <div key={i} className={`msg ${item.kind}`}>
               <div className="msg-who">{item.kind === 'user' ? 'You' : 'Claude'}</div>
-              <div className="msg-text">{item.text}</div>
+              {item.kind === 'assistant' ? <Markdown text={item.text} /> : <div className="msg-text">{item.text}</div>}
             </div>
           )
         )}

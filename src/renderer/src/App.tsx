@@ -149,7 +149,7 @@ export function App() {
           </button>
         ))}
         <div className="spacer" />
-        <MicButton state={voice.state} onToggle={voice.toggle} hotkey={hotkey} />
+        <MicButton state={voice.state} onPress={voice.press} onRelease={voice.release} hotkey={hotkey} />
         <button className="nav-item" onClick={refresh} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
