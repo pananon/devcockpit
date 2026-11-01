@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell, session, type IpcMainInvoke
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { AiTask, Settings, TerminalSpec } from '@shared/types';
+import type { AiTask, Settings, TerminalSpec, VoiceModel } from '@shared/types';
 import { getSettings, saveSettings } from './config';
 import { buildReport, isValidTag } from './models';
 import * as ollama from './ollama';
@@ -12,6 +12,7 @@ import { findRepos, listRepos } from './repos';
 import { getTranscript, listSessions, searchSessions } from './sessions';
 import { scanSystem } from './system';
 import { runTask } from './tasks';
+import { applyHotkey, disposeVoice, handleAudio, initVoice, reportRecording } from './voiceControl';
 
 // Security baseline: every renderer is sandboxed, isolated, and has no Node access.
 app.enableSandbox();
@@ -19,6 +20,21 @@ app.enableSandbox();
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
 const RENDERER_FILE = path.join(__dirname, '../renderer/index.html');
 let win: BrowserWindow | null = null;
+
+const WEB_PREFERENCES: Electron.WebPreferences = {
+  preload: path.join(__dirname, '../preload/index.js'),
+  contextIsolation: true,
+  nodeIntegration: false,
+  sandbox: true,
+  webSecurity: true,
+  webviewTag: false,
+  spellcheck: false,
+};
+
+const loadPage = (w: BrowserWindow, hash?: string) => {
+  if (DEV_URL) w.loadURL(hash ? `${DEV_URL}#${hash}` : DEV_URL);
+  else w.loadFile(RENDERER_FILE, hash ? { hash } : undefined);
+};
 
 /** Only our own bundled page (or the local dev server) may call the backend. */
 function isTrustedSender(e: IpcMainInvokeEvent | Electron.IpcMainEvent): boolean {
@@ -111,6 +127,27 @@ function registerIpc() {
   });
   on('ai:cancel', (id: unknown) => ollama.cancelChat(str(id, 64)));
 
+  // Voice
+  const VOICE_MODELS: VoiceModel[] = ['base', 'small', 'turbo'];
+  handle('settings:setVoice', (v: { voiceModel?: unknown; voiceLanguage?: unknown; voiceHotkey?: unknown }) => {
+    const cur = getSettings();
+    const next: Settings = {
+      ...cur,
+      voiceModel: VOICE_MODELS.includes(v?.voiceModel as VoiceModel) ? (v.voiceModel as VoiceModel) : cur.voiceModel,
+      voiceLanguage: v?.voiceLanguage !== undefined ? str(v.voiceLanguage, 32) : cur.voiceLanguage,
+      voiceHotkey: v?.voiceHotkey === null ? null : v?.voiceHotkey !== undefined ? str(v.voiceHotkey, 64) : cur.voiceHotkey,
+    };
+    saveSettings(next);
+    const active = applyHotkey();
+    return { ...next, voiceHotkeyActive: active != null };
+  });
+  on('voice:recording', (recording: unknown, fromHotkey: unknown) => reportRecording(recording === true, fromHotkey === true));
+  handle('voice:transcribe', (audio: unknown) => {
+    // 16 kHz mono, at most 5 minutes
+    if (!(audio instanceof Float32Array) || audio.length > 16000 * 300) throw new Error('Invalid audio');
+    return handleAudio(audio);
+  });
+
   handle('term:create', (spec: TerminalSpec) => {
     const clean: TerminalSpec = {
       cwd: str(spec?.cwd ?? ''),
@@ -138,19 +175,13 @@ function createWindow() {
     title: 'DevCockpit',
     autoHideMenuBar: true,
     show: false,
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      webSecurity: true,
-      webviewTag: false,
-      spellcheck: false,
-    },
+    webPreferences: WEB_PREFERENCES,
   });
   win.once('ready-to-show', () => win?.show());
-  if (DEV_URL) win.loadURL(DEV_URL);
-  else win.loadFile(RENDERER_FILE);
+  loadPage(win);
+  // The hidden voice pill is also a window, so quit explicitly when the main window closes.
+  win.on('closed', () => app.quit());
+  initVoice(win, (pill) => loadPage(pill, 'pill'), WEB_PREFERENCES);
 }
 
 // No in-app navigation, no new windows, no <webview>. External links go to the system browser.
@@ -174,13 +205,21 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
-    // Deny every browser permission (camera, location, notifications...) until a feature needs one.
-    session.defaultSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
-    session.defaultSession.setPermissionCheckHandler(() => false);
+    // Deny every browser permission except the microphone (audio only, our own page only) for voice input.
+    const ownPage = (url: string) => (DEV_URL ? url.startsWith(DEV_URL) : url.startsWith('file://'));
+    session.defaultSession.setPermissionRequestHandler((wc, permission, cb, details) => {
+      const media = details as Electron.MediaAccessPermissionRequest;
+      const audioOnly = permission === 'media' && (media.mediaTypes ?? []).every((t) => t === 'audio');
+      cb(audioOnly && ownPage(wc.getURL()));
+    });
+    session.defaultSession.setPermissionCheckHandler((wc, permission, origin, details) =>
+      permission === 'media' && (details as { mediaType?: string }).mediaType === 'audio' && ownPage(wc?.getURL() ?? origin)
+    );
     registerIpc();
     createWindow();
   });
 
+  app.on('will-quit', disposeVoice);
   app.on('window-all-closed', () => {
     killAll();
     app.quit();

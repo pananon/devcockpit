@@ -2,7 +2,7 @@
 
 **The cockpit for your dev day.** One desktop app that shows everything you're working on locally: every repo, every Claude Code session, every open pull request. Resume any session in the built-in terminal with one click.
 
-> Status: early development (Phase 1). Not released yet.
+> Status: early development (Phase 2). Not released yet.
 
 ## What it does
 
@@ -11,10 +11,12 @@
 - **Sessions**: all your Claude Code sessions, grouped by repo and searchable by full text. Read any transcript, or **Resume** it in the right folder.
 - **Pull requests**: yours, the ones waiting for your review, and recently merged ones, across every repo. Uses your existing `gh` login.
 - **Built-in terminal**: real Claude Code and shell tabs inside the app (`Ctrl+\``).
+- **Voice**: press `Ctrl+Shift+Space` in any app, speak, press it again, and the text is pasted where your cursor is. Inside DevCockpit it goes into the focused box or the active terminal. Whisper runs locally, on your GPU when one is available.
+- **Local AI**: one click checks your CPU, RAM and GPU and recommends the best model your machine can run through [Ollama](https://ollama.com). Use it for a morning brief, session summaries and quick questions, without spending Claude tokens.
 
 ## Roadmap
 
-- **Phase 2:** push-to-talk voice input that works in any app (local Whisper, no audio leaves your machine); a "what can my machine run?" check that picks and installs the right local model through Ollama; routine tasks such as summaries and overviews running on that local model so they don't use Claude tokens.
+- **Phase 2 (in progress):** hold-to-talk mode, custom vocabulary (your repo names) for better transcription, and markdown rendering for transcripts.
 - **Phase 3:** an email assistant (sorts email, finds job invites, writes drafts and never sends them), plus schedules and routines.
 - **Phase 4:** signed installers for Windows, macOS and Linux, and a demo mode.
 

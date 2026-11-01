@@ -67,6 +67,18 @@ export interface Settings {
   projectRoots: string[];
   /** default Ollama model for local tasks */
   localModel: string | null;
+  voiceModel: VoiceModel;
+  /** Whisper language name, e.g. 'english', 'hindi', or 'auto' */
+  voiceLanguage: string;
+  /** Electron accelerator for push-to-talk, or null to disable */
+  voiceHotkey: string | null;
+}
+
+export type VoiceModel = 'base' | 'small' | 'turbo';
+
+export interface VoiceState {
+  phase: 'idle' | 'listening' | 'working' | 'error';
+  message: string;
 }
 
 export interface TerminalSpec {
@@ -176,4 +188,9 @@ export interface CockpitApi {
   runAi(task: AiTask): Promise<string>;
   cancelAi(taskId: string): void;
   onAiEvent(cb: (e: AiEvent) => void): () => void;
+  setVoiceSettings(v: Partial<Pick<Settings, 'voiceModel' | 'voiceLanguage' | 'voiceHotkey'>>): Promise<Settings & { voiceHotkeyActive: boolean }>;
+  voiceRecording(recording: boolean, fromHotkey: boolean): void;
+  voiceTranscribe(audio: Float32Array): Promise<{ text: string; pasted: boolean }>;
+  onVoiceCommand(cb: (cmd: 'start' | 'stop') => void): () => void;
+  onVoiceState(cb: (s: VoiceState) => void): () => void;
 }

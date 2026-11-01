@@ -17,5 +17,8 @@ DevCockpit runs a real terminal and reads your local transcripts, so anything th
 | Navigation and popups | In-app navigation, new windows and `<webview>` are all blocked. External links open in the system browser, and only over `https://`. |
 | Command injection | `git` and `gh` run through `execFile` without a shell. Session IDs are checked as UUIDs before reaching a command line. |
 | Credential theft | No tokens stored. GitHub access goes through the user's own `gh` login. No telemetry. |
-| Browser permissions | Camera, microphone, location and notifications are all denied by default. Each will be enabled only when a feature needs it. |
+| Browser permissions | Everything is denied except the microphone, and only for audio, only for our own page. Camera, location, notifications and clipboard stay off. |
+| Voice data | Audio is held in memory, transcribed by a local Whisper model, then discarded. It's never written to disk or uploaded. Only the model weights are downloaded, once, from Hugging Face. |
+| Dictating into other apps | The global shortcut puts the transcribed text on the clipboard and sends exactly one paste keystroke (Ctrl/Cmd+V) to the front app. Your previous clipboard text is then restored. It never types anything else and can be turned off in Settings. |
+| Local AI | Ollama is only contacted on loopback (127.0.0.1/localhost), even if `OLLAMA_HOST` points elsewhere. Prompts wrap your data in `<data>` tags and tell the model to ignore instructions inside them, and model output is shown as plain text. DevCockpit never installs Ollama or other software by itself. |
 | Supply chain | Few dependencies, exact versions, lockfile. Planned: CodeQL, Dependabot, OpenSSF Scorecard, npm provenance, signed releases, Electron fuses. |

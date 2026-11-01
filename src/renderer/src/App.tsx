@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PrBuckets, Repo, SessionSummary, TerminalSpec } from '@shared/types';
+import { MicButton } from './components/MicButton';
 import { TerminalDock, type TermTab } from './components/TerminalDock';
 import { onExit } from './termBus';
+import { insertIntoField, useVoice } from './useVoice';
 import { baseName } from './util';
 import { Today } from './views/Today';
 import { Repos } from './views/Repos';
@@ -44,6 +46,23 @@ export function App() {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [dockOpen, setDockOpen] = useState(false);
   const [dockHeight, setDockHeight] = useState(Math.round(window.innerHeight * 0.45));
+  const [hotkey, setHotkey] = useState<string | null>(null);
+  const [fallbackText, setFallbackText] = useState<string | null>(null);
+
+  // Dictated text goes to the focused text field, else the active terminal (no Enter is sent).
+  const voice = useVoice((text, field) => {
+    if (insertIntoField(text, field ?? undefined)) return;
+    if (activeTab) {
+      setDockOpen(true);
+      window.cockpit.termWrite(activeTab, text);
+      return;
+    }
+    setFallbackText(text);
+  });
+
+  useEffect(() => {
+    window.cockpit.getSettings().then((s) => setHotkey(s.voiceHotkey));
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -128,6 +147,7 @@ export function App() {
           </button>
         ))}
         <div className="spacer" />
+        <MicButton state={voice.state} onToggle={voice.toggle} hotkey={hotkey} />
         <button className="nav-item" onClick={refresh} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
@@ -143,7 +163,7 @@ export function App() {
           {view === 'sessions' && <Sessions data={data} actions={actions} focus={focus} />}
           {view === 'prs' && <Prs data={data} actions={actions} />}
           {view === 'ai' && <LocalAI actions={actions} />}
-          {view === 'settings' && <SettingsView actions={actions} />}
+          {view === 'settings' && <SettingsView actions={actions} onHotkey={setHotkey} />}
         </main>
         {tabs.length > 0 && (
           <TerminalDock
@@ -159,6 +179,19 @@ export function App() {
           />
         )}
       </div>
+      {(voice.notice || fallbackText) && (
+        <div className="toast" role="status">
+          {voice.notice ?? (
+            <>
+              <div className="muted small">No text box or terminal was active, so here is what you said:</div>
+              <div className="toast-text">{fallbackText}</div>
+            </>
+          )}
+          <button className="icon-btn" aria-label="Dismiss" onClick={() => setFallbackText(null)}>
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }
