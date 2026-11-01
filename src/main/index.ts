@@ -22,6 +22,11 @@ import { applyHotkey, disposeVoice, handleAudio, initVoice, reportRecording } fr
 // Security baseline: every renderer is sandboxed, isolated, and has no Node access.
 app.enableSandbox();
 
+// Windows groups taskbar buttons and picks their icon by this ID; it must match the
+// shortcut's ID, or the taskbar falls back to Electron's own icon.
+export const APP_USER_MODEL_ID = 'com.pananon.devcockpit';
+if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
+
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
 const RENDERER_FILE = path.join(__dirname, '../renderer/index.html');
 let win: BrowserWindow | null = null;
