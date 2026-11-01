@@ -3,7 +3,7 @@ import type { Brief, BriefRef, Routine } from '@shared/types';
 import type { Actions, Data } from '../App';
 import { AiOutput } from '../components/AiOutput';
 import { useAi } from '../useAi';
-import { ago, baseName, repoColor, samePath, tint } from '../util';
+import { ago, baseName, plural, repoColor, samePath, tint } from '../util';
 
 interface Props {
   data: Data;
@@ -196,7 +196,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
                     <span className="mono small muted">{live ? 'live' : ago(s.updatedAt)}</span>
                   </div>
                   <div className="mono small" style={{ color: repo ? c : 'var(--muted)' }}>
-                    {repo ?? 'no repo'} · {s.userTurns} prompts
+                    {repo ?? 'no repo'} · {plural(s.userTurns, 'prompt')}
                   </div>
                 </button>
               );
@@ -284,7 +284,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
         <span className="mono" style={{ color: 'var(--accent)', fontSize: 18, paddingLeft: 6 }}>
           &gt;
         </span>
-        <input aria-label="Ask DevCockpit" placeholder="Ask DevCockpit… “What’s pending on tatvafit?”" value={question} onChange={(e) => setQuestion(e.target.value)} />
+        <input aria-label="Ask DevCockpit" placeholder={`Ask DevCockpit… “What’s pending on ${inMotion[0]?.name ?? repos?.[0]?.name ?? 'my-app'}?”`} value={question} onChange={(e) => setQuestion(e.target.value)} />
         <span className="mono small muted">local model · no Claude tokens</span>
         {ai.running ? (
           <button type="button" className="btn" onClick={ai.stop}>

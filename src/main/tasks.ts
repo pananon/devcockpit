@@ -34,7 +34,7 @@ async function summarizePrompt(sessionId: string): Promise<ChatMessage[]> {
   ];
 }
 
-/** Repos the question is about. Misspelled names are corrected first ("Tatwafit" -> tatvafit). */
+/** Repos the question is about. Misspelled names are corrected first ("Devkokpit" -> devcockpit). */
 function mentionedRepos(question: string, repos: Repo[]): Repo[] {
   const corrected = squash(correctVocabulary(question, repos.map((r) => r.name)));
   return repos.filter((r) => squash(r.name).length >= 3 && corrected.includes(squash(r.name))).slice(0, 2);

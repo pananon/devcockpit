@@ -1,4 +1,4 @@
-// Fixes project names Whisper mishears ("Tatbifit", "TatBuffet" -> "tatvafit").
+// Fixes project names Whisper mishears (e.g. "Dev Cock Pit" -> "devcockpit").
 // Whisper has no reliable hint mechanism in transformers.js, so we correct afterwards:
 // one to three spoken words are joined, normalised for common accent/spelling
 // confusions, and compared with the vocabulary by edit distance.
@@ -71,7 +71,7 @@ export function correctVocabulary(text: string, vocabulary: string[]): string {
         const ratio = d / Math.max(key.length, term.key.length);
         // Inflections differ at the end (athlete/athletic): mishearings differ in the middle.
         const sharesStem = commonPrefix(key, term.key) / Math.min(key.length, term.key.length) >= 0.8;
-        // A perfect phonetic match ("Tatwafit" ~ "tatvafit") is still a correction, not an exact spelling.
+        // A perfect phonetic match ("Devkokpit" ~ "devcockpit") is still a correction, not an exact spelling.
         if (ratio <= (n > 1 ? 0.2 : 0.25) && (!sharesStem || d === 0) && (!best || ratio < best.score)) best = { n, term, score: ratio, exact: false };
       }
       if (best) break;

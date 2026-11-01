@@ -45,7 +45,10 @@ npm ci
 npm run dev        # run with hot reload
 npm run typecheck
 npm run build
+npm run demo       # run with made-up data
 ```
+
+Demo mode fills every screen with fictional repos, sessions and PRs, so screenshots and screen recordings never show your real work. It reads nothing from your disk, runs no commands, and keeps its own settings. The terminal replays a sample session and doesn't run anything you type. The installed app takes the same `--demo` flag.
 
 ## License
 

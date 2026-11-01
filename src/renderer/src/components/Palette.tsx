@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Actions, Data } from '../App';
 import { NAV } from '../App';
-import { ago, baseName, repoColor, samePath } from '../util';
+import { ago, baseName, plural, repoColor, samePath } from '../util';
 
 interface Item {
   id: string;
@@ -13,7 +13,7 @@ interface Item {
   run: () => void;
 }
 
-/** Substring match beats in-order letters ("tvf" finds "tatvafit"); -1 = no match. */
+/** Substring match beats in-order letters ("dcp" finds "devcockpit"); -1 = no match. */
 function score(q: string, text: string): number {
   if (!q) return 1;
   const t = text.toLowerCase();
@@ -82,7 +82,7 @@ export function Palette({ data, actions, onClose }: { data: Data; actions: Actio
           id: `s-${s.id}`,
           group: q ? 'Sessions' : 'Recent sessions',
           label: s.title,
-          sub: `${repo ?? 'no repo'} · ${ago(s.updatedAt)} · ${s.userTurns} prompts`,
+          sub: `${repo ?? 'no repo'} · ${ago(s.updatedAt)} · ${plural(s.userTurns, 'prompt')}`,
           color: repoColor(repo),
           hint: 'resume',
           run: run(() => actions.openClaude(s.repoPath ?? s.cwd, { resumeId: s.id, title: s.title })),

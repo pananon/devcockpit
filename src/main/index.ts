@@ -7,6 +7,7 @@ import { applyBackgroundMode, isQuitting, markQuitting, notify, showWindow, star
 import { getSettings, saveSettings } from './config';
 import { APP_ORIGIN, registerAppScheme, serveAppProtocol } from './appProtocol';
 import { buildBrief } from './brief';
+import { demoHandlers } from './demo';
 import { buildReport, isValidTag } from './models';
 import * as ollama from './ollama';
 import { startOllama } from './ollamaInstall';
@@ -31,6 +32,12 @@ const DEV_URL = process.env.ELECTRON_RENDERER_URL;
 const RENDERER_DIR = path.join(__dirname, '../renderer');
 let win: BrowserWindow | null = null;
 
+// Demo mode keeps its own data folder (and single-instance lock), so it can run
+// next to the real app and never reads or writes the real settings.
+const DEMO = process.argv.includes('--demo');
+if (DEMO) app.setPath('userData', path.join(app.getPath('temp'), 'DevCockpit-demo'));
+const demo = DEMO ? demoHandlers((channel, ...args) => win?.webContents.send(channel, ...args)) : null;
+
 registerAppScheme();
 
 const WEB_PREFERENCES: Electron.WebPreferences = {
@@ -51,16 +58,27 @@ function isTrustedSender(e: IpcMainInvokeEvent | Electron.IpcMainEvent): boolean
   return DEV_URL ? url.startsWith(DEV_URL) : url.startsWith(`${APP_ORIGIN}/`);
 }
 
+/** In demo mode a channel without a fake answer refuses, so real data can never leak in. */
+const impl = (channel: string, fn: (...args: any[]) => unknown) =>
+  demo
+    ? (demo[channel] ??
+      (() => {
+        throw new Error('Not available in demo mode');
+      }))
+    : fn;
+
 function handle(channel: string, fn: (...args: any[]) => unknown) {
+  const run = impl(channel, fn);
   ipcMain.handle(channel, (e, ...args) => {
     if (!isTrustedSender(e)) throw new Error('Untrusted sender');
-    return fn(...args);
+    return run(...args);
   });
 }
 
 function on(channel: string, fn: (...args: any[]) => void) {
+  const run = impl(channel, fn);
   ipcMain.on(channel, (e, ...args) => {
-    if (isTrustedSender(e)) fn(...args);
+    if (isTrustedSender(e)) run(...args);
   });
 }
 
@@ -260,7 +278,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!DEV_URL) serveAppProtocol(RENDERER_DIR);
     registerIpc();
     createWindow();
-    startScheduler(runner, onRoutineChange);
+    if (!DEMO) startScheduler(runner, onRoutineChange);
   });
 
   app.on('before-quit', () => {

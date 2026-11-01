@@ -63,8 +63,8 @@ function fitFor(sizeGB: number, paramsB: number, sys: SystemInfo): { fit: ModelF
 
 const FIT_RANK: Record<ModelFit, number> = { gpu: 3, cpu: 2, partial: 1, no: 0 };
 
-export async function buildReport(sys: SystemInfo): Promise<ModelReport> {
-  const sizes = await Promise.all(CATALOG.map((m) => registrySizeGB(m.tag)));
+export async function buildReport(sys: SystemInfo, lookupSizes = true): Promise<ModelReport> {
+  const sizes = await Promise.all(CATALOG.map((m) => (lookupSizes ? registrySizeGB(m.tag) : null)));
   const options: ModelOption[] = CATALOG.map((m, i) => {
     const sizeGB = sizes[i] ?? m.approxGB;
     return { ...m, sizeGB, sizeExact: sizes[i] != null, ...fitFor(sizeGB, m.paramsB, sys) };

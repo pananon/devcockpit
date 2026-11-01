@@ -4,7 +4,7 @@ import type { Actions, Data } from '../App';
 import { AiOutput } from '../components/AiOutput';
 import { Markdown } from '../components/Markdown';
 import { useAi } from '../useAi';
-import { ago, baseName } from '../util';
+import { ago, baseName, plural } from '../util';
 
 const PAGE = 300;
 
@@ -72,7 +72,7 @@ export function Sessions({ data, actions, focus }: { data: Data; actions: Action
                   <li key={s.id} className={`list-row ${s.id === selected ? 'selected' : ''}`} onClick={() => setSelected(s.id)}>
                     <div className="grow">
                       <div className="title">{s.title}</div>
-                      <div className="muted small">{snippet(s.id) ?? `${ago(s.updatedAt)} · ${s.userTurns} prompts`}</div>
+                      <div className="muted small">{snippet(s.id) ?? `${ago(s.updatedAt)} · ${plural(s.userTurns, 'prompt')}`}</div>
                     </div>
                   </li>
                 ))}
@@ -111,7 +111,7 @@ function SessionDetail({ session, actions }: { session: SessionSummary; actions:
           <h1>{session.title}</h1>
           <p className="muted small">
             {session.repoPath ? baseName(session.repoPath) : session.cwd}
-            {session.gitBranch && <> · {session.gitBranch}</>} · started {ago(session.startedAt)} · last active {ago(session.updatedAt)} · {session.userTurns} prompts
+            {session.gitBranch && <> · {session.gitBranch}</>} · started {ago(session.startedAt)} · last active {ago(session.updatedAt)} · {plural(session.userTurns, 'prompt')}
             {session.costUSD != null && <> · ${session.costUSD.toFixed(2)}</>}
           </p>
         </div>

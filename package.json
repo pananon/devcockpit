@@ -1,7 +1,7 @@
 {
   "name": "devcockpit",
   "version": "0.1.0",
-  "description": "The cockpit for your dev day: Claude Code sessions, repos, PRs, voice and local AI on one screen.",
+  "description": "The cockpit for your dev day: Claude Code sessions, repos, PRs and local AI on one screen.",
   "license": "MIT",
   "author": "Hari Mangal Pandey",
   "private": true,
@@ -11,6 +11,7 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "demo": "electron-vite build && electron . --demo",
     "dist": "electron-vite build && electron-builder"
   },
   "devDependencies": {

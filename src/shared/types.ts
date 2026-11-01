@@ -169,7 +169,7 @@ export interface Brief {
 export interface AiEvent {
   taskId: string;
   text?: string;
-  /** what the model was given, e.g. ['tatvafit'] */
+  /** what the model was given, e.g. ['my-app'] */
   context?: string[];
   done?: boolean;
   error?: string;

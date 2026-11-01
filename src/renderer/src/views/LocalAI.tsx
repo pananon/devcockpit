@@ -207,7 +207,7 @@ export function LocalAI({ actions }: { actions: Actions }) {
             if (prompt.trim()) ai.start({ kind: 'ask', prompt });
           }}
         >
-          <input className="input grow" placeholder="e.g. What's pending on tatvafit? · What did I do yesterday? · Explain git rebase --onto" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+          <input className="input grow" placeholder="e.g. What's pending on my-app? ·What did I do yesterday? · Explain git rebase --onto" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
           {ai.running ? (
             <button type="button" className="btn" onClick={ai.stop}>
               Stop
