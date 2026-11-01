@@ -75,7 +75,7 @@ export function FocusMode({ data, actions, repoPath, onSwitch, onClose }: Props)
 
   if (!repo) {
     return (
-      <div className="focus" role="dialog" aria-label="Focus mode">
+      <div className="focus-mode" role="dialog" aria-label="Focus mode">
         <div className="card" style={{ maxWidth: 560, margin: '80px auto' }}>
           <h1 style={{ marginTop: 0 }}>Nothing to focus on</h1>
           <p className="muted">Every repo is committed and pushed, and there are no open to-dos. Enjoy it.</p>
@@ -88,7 +88,7 @@ export function FocusMode({ data, actions, repoPath, onSwitch, onClose }: Props)
   }
 
   return (
-    <div className="focus" role="dialog" aria-label={`Focus mode: ${repo.name}`}>
+    <div className="focus-mode" role="dialog" aria-label={`Focus mode: ${repo.name}`}>
       <main style={{ flex: '999 1 640px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <span className="eyebrow" style={{ color: c }}>
