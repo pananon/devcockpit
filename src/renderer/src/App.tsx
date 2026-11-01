@@ -6,6 +6,7 @@ import { Icon } from './components/Icons';
 import { Palette } from './components/Palette';
 import { StatusBar } from './components/StatusBar';
 import { TerminalDock, type TermTab } from './components/TerminalDock';
+import { TitleBar } from './components/TitleBar';
 import { onExit } from './termBus';
 import { insertIntoField, useVoice } from './useVoice';
 import { baseName, registerRepos, samePath } from './util';
@@ -208,11 +209,12 @@ export function App() {
 
   return (
     <div className="shell">
+      <TitleBar
+        section={focusRepo !== undefined ? 'Focus' : view === 'settings' ? 'Settings' : (NAV.find((n) => n.view === view)?.label ?? '')}
+        onSearch={() => setPaletteOpen(true)}
+      />
       <div className="shell-main">
         <nav className="rail" aria-label="Main">
-          <div className="rail-logo" title="DevCockpit">
-            <Icon.logo />
-          </div>
           {NAV.map((n) => (
             <button
               key={n.view}

@@ -649,3 +649,85 @@ kbd,
     animation: none !important;
   }
 }
+
+/* ---------- Title bar (replaces the native one) ---------- */
+:root {
+  --titlebar-h: 34px;
+}
+.titlebar {
+  height: var(--titlebar-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 14px;
+  background: #04070c;
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag; /* drag to move, double-click to maximise */
+  user-select: none;
+}
+.titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.titlebar-brand svg {
+  width: 16px;
+  height: 16px;
+}
+.titlebar-name {
+  color: var(--bright);
+  font-weight: 700;
+}
+.titlebar-sep {
+  color: var(--line-strong);
+}
+.titlebar-section {
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.titlebar-search {
+  -webkit-app-region: no-drag;
+  margin: 0 auto;
+  width: min(420px, 40vw);
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 0 10px;
+  background: rgba(56, 200, 255, 0.05);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font: 12px var(--sans);
+  cursor: pointer;
+}
+.titlebar-search:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.titlebar-search svg {
+  width: 13px;
+  height: 13px;
+}
+.titlebar-search span:nth-child(2) {
+  flex: 1;
+  text-align: left;
+}
+.titlebar-controls-space {
+  /* the OS draws minimise / maximise / close here */
+  width: 138px;
+  flex-shrink: 0;
+}
+.rail {
+  padding-top: 10px;
+}
+.overlay,
+.focus {
+  top: var(--titlebar-h);
+}
