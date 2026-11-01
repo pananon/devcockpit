@@ -697,3 +697,17 @@ kbd,
 .focus {
   top: var(--titlebar-h);
 }
+
+/* ---------- Terminal dock: never taller than the stage, tab bar always visible ---------- */
+.stage {
+  min-height: 0;
+  overflow: hidden;
+}
+.dock-tabs {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 3;
+}
+.dock-body {
+  overflow: hidden;
+}
