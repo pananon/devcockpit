@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import type { Brief, BriefRef, Routine } from '@shared/types';
 import type { Actions, Data } from '../App';
 import { AiOutput } from '../components/AiOutput';
+import { change, money, NO_REPO, weekCompare } from '../insights';
 import { useAi } from '../useAi';
-import { ago, baseName, repoColor, samePath, tint } from '../util';
+import { ago, baseName, plural, repoColor, samePath, tint } from '../util';
 
 interface Props {
   data: Data;
@@ -40,6 +41,9 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
   const unpushed = (repos ?? []).reduce((n, r) => n + r.ahead, 0);
   const reviews = prs?.reviewRequested ?? [];
   const mine = prs?.mine ?? [];
+  const week = sessions ? weekCompare(sessions) : null;
+  const spendDelta = week && change(week.now.spend, week.prev.spend);
+  const promptDelta = week && change(week.now.prompts, week.prev.prompts);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
@@ -130,6 +134,45 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
               <div className="label" style={{ fontSize: 10 }}>reviews due</div>
             </button>
           </div>
+          {week && (
+            <div className="week">
+              <button className="plain" style={{ textAlign: 'left' }} onClick={() => actions.go('insights')} title="Claude spend over the last 7 days">
+                <div className="week-num">{money(week.now.spend)}</div>
+                <div className="label" style={{ fontSize: 10 }}>Claude spend · 7 days</div>
+                {spendDelta && (
+                  <div className="mono small" style={{ color: spendDelta.up ? 'var(--warn)' : 'var(--ok)' }}>
+                    {spendDelta.text} vs {money(week.prev.spend)}
+                  </div>
+                )}
+              </button>
+              <button className="plain" style={{ textAlign: 'left' }} onClick={() => actions.go('insights')} title="Prompts over the last 7 days">
+                <div className="week-num">{week.now.prompts}</div>
+                <div className="label" style={{ fontSize: 10 }}>prompts · 7 days</div>
+                {promptDelta && (
+                  <div className="mono small" style={{ color: promptDelta.up ? 'var(--ok)' : 'var(--warn)' }}>
+                    {promptDelta.text} vs {week.prev.prompts}
+                  </div>
+                )}
+              </button>
+              <div className="week-repos">
+                {[...week.now.byRepo]
+                  .filter((r) => r.spend > 0)
+                  .sort((a, b) => b.spend - a.spend)
+                  .slice(0, 3)
+                  .map((r) => (
+                    <div key={r.repo} className="row mono small" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+                      <span className="title">
+                        <span className="led" style={{ background: r.repo === NO_REPO ? '#4b5a68' : repoColor(r.repo), marginRight: 6 }} />
+                        {r.repo}
+                      </span>
+                      <span style={{ color: 'var(--muted)' }}>
+                        {money(r.spend)} · {r.prompts}p
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="panel mc-wide" style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -137,7 +180,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
             <span className="label">02 · Mission brief</span>
             <span className="row">
               <span className="label" style={{ color: 'var(--muted)' }}>
-                {brief ? (brief.usedModel ? `priorities by ${brief.model} · local · facts verified` : 'priorities by rules · start Ollama for smarter picks') : ''}
+                {brief ? (brief.usedModel ? `priorities by ${brief.model} · local · facts verified` : data.localAi ? 'priorities by rules · start Ollama for smarter picks' : 'priorities by rules · local AI off') : ''}
               </span>
               <button className="btn small" onClick={rebuild} disabled={rebuilding}>
                 {rebuilding ? 'Thinking…' : 'Re-plan'}
@@ -196,7 +239,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
                     <span className="mono small muted">{live ? 'live' : ago(s.updatedAt)}</span>
                   </div>
                   <div className="mono small" style={{ color: repo ? c : 'var(--muted)' }}>
-                    {repo ?? 'no repo'} · {s.userTurns} prompts
+                    {repo ?? 'no repo'} · {plural(s.userTurns, 'prompt')}
                   </div>
                 </button>
               );
@@ -273,6 +316,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
         </div>
       )}
 
+      {data.localAi && (
       <form
         className="cmdbar"
         style={{ marginTop: 'auto' }}
@@ -284,7 +328,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
         <span className="mono" style={{ color: 'var(--accent)', fontSize: 18, paddingLeft: 6 }}>
           &gt;
         </span>
-        <input aria-label="Ask DevCockpit" placeholder="Ask DevCockpit… “What’s pending on tatvafit?”" value={question} onChange={(e) => setQuestion(e.target.value)} />
+        <input aria-label="Ask DevCockpit" placeholder={`Ask DevCockpit… “What’s pending on ${inMotion[0]?.name ?? repos?.[0]?.name ?? 'my-app'}?”`} value={question} onChange={(e) => setQuestion(e.target.value)} />
         <span className="mono small muted">local model · no Claude tokens</span>
         {ai.running ? (
           <button type="button" className="btn" onClick={ai.stop}>
@@ -296,6 +340,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
           </button>
         )}
       </form>
+      )}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import type { SessionSearchHit, SessionSummary, TranscriptItem } from '@shared/types';
 
-const INDEX_VERSION = 1;
+const INDEX_VERSION = 2;
 const MAX_SEARCH_CHARS = 300_000;
 const MAX_FILE_PATHS = 500;
 
@@ -78,6 +78,12 @@ function toolDetail(input: any): string {
 
 const oneLine = (s: string, n = 140) => s.replace(/\s+/g, ' ').trim().slice(0, n);
 
+/** Local calendar day, e.g. "2026-11-02". */
+export function dayKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 async function parseSession(file: string, stat: fs.Stats): Promise<Indexed> {
   const id = path.basename(file, '.jsonl');
   let title = '';
@@ -88,6 +94,10 @@ async function parseSession(file: string, stat: fs.Stats): Promise<Indexed> {
   let updatedAt: string | null = null;
   let userTurns = 0;
   let costUSD: number | null = null;
+  // Claude Code writes a running cost total; each increase is charged to the day it was seen.
+  let lastTotal = 0;
+  const promptDays: Record<string, number> = {};
+  const costDays: Record<string, number> = {};
   const cwdCounts: Record<string, number> = {};
   const filePaths: string[] = [];
   let searchText = '';
@@ -111,11 +121,20 @@ async function parseSession(file: string, stat: fs.Stats): Promise<Indexed> {
     if (o.type === 'ai-title' && typeof o.aiTitle === 'string') title = o.aiTitle;
     else if (o.type === 'summary' && typeof o.summary === 'string' && !title) title = o.summary;
     else if (o.type === 'last-prompt' && typeof o.lastPrompt === 'string') lastPrompt = o.lastPrompt;
-    else if (o.type === 'cost-state' && typeof o.totalCostUSD === 'number') costUSD = o.totalCostUSD;
+    else if (o.type === 'cost-state' && typeof o.totalCostUSD === 'number') {
+      costUSD = o.totalCostUSD;
+      // A lower total means a new process resumed the session and started counting from zero.
+      const added = o.totalCostUSD >= lastTotal ? o.totalCostUSD - lastTotal : o.totalCostUSD;
+      lastTotal = o.totalCostUSD;
+      const day = dayKey(updatedAt ?? new Date(stat.mtimeMs).toISOString());
+      if (added > 0) costDays[day] = (costDays[day] ?? 0) + added;
+    }
 
     const prompt = humanPrompt(o);
     if (prompt) {
       userTurns++;
+      const day = dayKey(typeof o.timestamp === 'string' ? o.timestamp : (updatedAt ?? new Date(stat.mtimeMs).toISOString()));
+      promptDays[day] = (promptDays[day] ?? 0) + 1;
       if (!firstPrompt) firstPrompt = prompt;
       if (searchText.length < MAX_SEARCH_CHARS) searchText += `\n${prompt}`;
     }
@@ -144,6 +163,8 @@ async function parseSession(file: string, stat: fs.Stats): Promise<Indexed> {
       updatedAt: updatedAt ?? new Date(stat.mtimeMs).toISOString(),
       userTurns,
       costUSD,
+      promptDays,
+      costDays,
     },
     cwdCounts,
     filePaths,
@@ -285,3 +306,29 @@ export async function getTranscript(id: string): Promise<TranscriptItem[]> {
   }
   return items;
 }
+
+/**
+ * Moves sessions to the Recycle Bin / Trash: the transcript and its sidecar folder
+ * (subagent and tool-output files). Paths come from our own index, never the renderer.
+ */
+export async function trashSessions(ids: string[], trash: (p: string) => Promise<void>): Promise<number> {
+  let removed = 0;
+  for (const id of ids) {
+    const entry = findIndexed(id);
+    if (!entry) continue;
+    const file = entry.summary.file;
+    const sidecar = path.join(path.dirname(file), id);
+    try {
+      await trash(file);
+      if (/^[0-9a-f-]{36}$/i.test(id) && fs.existsSync(sidecar)) await trash(sidecar);
+      index!.delete(file);
+      removed++;
+    } catch {
+      // locked or already gone: leave it in the list
+    }
+  }
+  if (removed) saveIndex();
+  return removed;
+}
+
+export const sessionTitles = (ids: string[]) => ids.map((id) => findIndexed(id)?.summary.title).filter((t): t is string => !!t);

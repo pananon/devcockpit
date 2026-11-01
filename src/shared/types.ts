@@ -14,7 +14,16 @@ export interface Repo {
   lastCommit: { hash: string; subject: string; date: string } | null;
   recentCommits: { hash: string; subject: string; date: string }[];
   /** unchecked "- [ ]" items from TODO.md / actions.md / ROADMAP.md */
-  todos: { file: string; text: string }[];
+  todos: Todo[];
+}
+
+export interface Todo {
+  file: string;
+  text: string;
+  /** 0-based line in the file, used to tick it off */
+  line: number;
+  /** from a trailing <!-- YYYY-MM-DD --> marker, if present */
+  addedAt: string | null;
 }
 
 export interface SessionSummary {
@@ -32,6 +41,10 @@ export interface SessionSummary {
   updatedAt: string;
   userTurns: number;
   costUSD: number | null;
+  /** prompts typed per local day, e.g. { "2026-11-02": 14 } */
+  promptDays: Record<string, number>;
+  /** Claude spend per local day in USD */
+  costDays: Record<string, number>;
 }
 
 export type TranscriptItem =
@@ -69,6 +82,10 @@ export interface Settings {
   localModel: string | null;
   /** keep running in the tray and start at login, so routines run with the window closed */
   backgroundMode: boolean;
+  /** Claude sessions opened from DevCockpit may add todos to the repo's TODO.md when asked */
+  saveTodos: boolean;
+  /** false = no local model: the brief uses rules, Ask and summaries are hidden, Ollama is never contacted */
+  localAi: boolean;
 }
 
 export interface TerminalSpec {
@@ -77,6 +94,8 @@ export interface TerminalSpec {
   program: 'claude' | 'shell' | 'ollama-install';
   /** resume this Claude Code session */
   resumeId?: string;
+  /** first message for a new Claude session */
+  prompt?: string;
   title?: string;
 }
 
@@ -96,6 +115,14 @@ export interface SystemInfo {
   gpus: GpuInfo[];
   bestGpu: GpuInfo | null;
   freeDiskGB: number | null;
+}
+
+/** Live machine load for the status bar. GPU fields are null when they can't be read. */
+export interface SystemUsage {
+  cpuPct: number;
+  ramUsedGB: number;
+  ramTotalGB: number;
+  gpu: { name: string; pct: number; vramUsedGB: number; vramTotalGB: number } | null;
 }
 
 export interface CatalogModel {
@@ -169,7 +196,7 @@ export interface Brief {
 export interface AiEvent {
   taskId: string;
   text?: string;
-  /** what the model was given, e.g. ['tatvafit'] */
+  /** what the model was given, e.g. ['my-app'] */
   context?: string[];
   done?: boolean;
   error?: string;
@@ -213,6 +240,13 @@ export interface CockpitApi {
   listSessions(): Promise<SessionSummary[]>;
   getTranscript(id: string): Promise<TranscriptItem[]>;
   searchSessions(query: string): Promise<SessionSearchHit[]>;
+  /** asks for confirmation, then moves the transcripts to the Recycle Bin; resolves to how many were removed */
+  deleteSessions(ids: string[]): Promise<number>;
+  addTodo(repoPath: string, text: string): Promise<void>;
+  completeTodo(repoPath: string, todo: Todo): Promise<void>;
+  setSaveTodos(on: boolean): Promise<Settings>;
+  /** turning off unloads the model from memory and stops the Ollama server if DevCockpit started it */
+  setLocalAi(on: boolean): Promise<Settings>;
   listPrs(): Promise<PrBuckets>;
   openExternal(url: string): Promise<void>;
   termCreate(spec: TerminalSpec): Promise<string>;
@@ -224,6 +258,7 @@ export interface CockpitApi {
   setLocalModel(tag: string | null): Promise<Settings>;
   startOllama(): Promise<boolean>;
   scanModels(): Promise<ModelReport>;
+  systemUsage(): Promise<SystemUsage>;
   ollamaStatus(): Promise<OllamaStatus>;
   pullModel(tag: string): Promise<void>;
   cancelPull(tag: string): void;

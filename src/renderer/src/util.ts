@@ -8,7 +8,10 @@ export function ago(iso: string | null | undefined): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export const baseName = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p;
+/** "1 prompt", "3 prompts" */
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+export const baseName =(p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p;
 
 export const samePath = (a: string | null | undefined, b: string | null | undefined) =>
   !!a && !!b && a.replace(/\\/g, '/').toLowerCase() === b.replace(/\\/g, '/').toLowerCase();

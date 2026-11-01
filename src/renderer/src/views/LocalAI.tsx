@@ -1,13 +1,61 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ModelFit, ModelOption, ModelReport, OllamaStatus, PullProgress } from '@shared/types';
-import type { Actions } from '../App';
+import type { Actions, Data } from '../App';
 import { AiOutput } from '../components/AiOutput';
 import { useAi } from '../useAi';
 
 const FIT_LABEL: Record<ModelFit, string> = { gpu: 'Fast · GPU', cpu: 'OK · CPU', partial: 'Slow', no: "Won't fit" };
 const FIT_TONE: Record<ModelFit, string> = { gpu: 'ok', cpu: 'info', partial: 'warn', no: '' };
 
-export function LocalAI({ actions }: { actions: Actions }) {
+/** What the switch changes, shown when local AI is off and in Settings. */
+export const LOCAL_AI_FEATURES = [
+  ['Mission brief', 'the model picks your top 3; off, simple rules pick them'],
+  ['Ask', 'questions about your work, from Today, Ctrl+K and this tab'],
+  ['Summaries', '"Summarise locally" on sessions and "Where did I leave off?"'],
+  ['Ask routines', 'routines that ask the model are skipped; Claude Code routines still run'],
+];
+
+export function LocalAI({ data, actions }: { data: Data; actions: Actions }) {
+  return data.localAi ? <LocalAIOn actions={actions} /> : <LocalAIOff actions={actions} />;
+}
+
+function LocalAIOff({ actions }: { actions: Actions }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="page narrow">
+      <header className="page-head">
+        <div>
+          <h1>Local AI is off</h1>
+          <p className="muted">DevCockpit works fully without it. Nothing is loaded into memory, and Ollama is never contacted.</p>
+        </div>
+      </header>
+      <section className="card">
+        <h3>Turning it on adds</h3>
+        <ul className="list">
+          {LOCAL_AI_FEATURES.map(([name, what]) => (
+            <li key={name} className="list-row static">
+              <strong style={{ width: 130, flexShrink: 0 }}>{name}</strong>
+              <span className="muted">{what}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="muted small">It runs a free model on your own machine through Ollama: no Claude tokens, and nothing leaves your computer.</p>
+        <button
+          className="btn primary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            await actions.setLocalAi(true).finally(() => setBusy(false));
+          }}
+        >
+          {busy ? 'Starting…' : 'Turn on local AI'}
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function LocalAIOn({ actions }: { actions: Actions }) {
   const [status, setStatus] = useState<OllamaStatus | null>(null);
   const [report, setReport] = useState<ModelReport | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -207,7 +255,7 @@ export function LocalAI({ actions }: { actions: Actions }) {
             if (prompt.trim()) ai.start({ kind: 'ask', prompt });
           }}
         >
-          <input className="input grow" placeholder="e.g. What's pending on tatvafit? · What did I do yesterday? · Explain git rebase --onto" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+          <input className="input grow" placeholder="e.g. What's pending on my-app? ·What did I do yesterday? · Explain git rebase --onto" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
           {ai.running ? (
             <button type="button" className="btn" onClick={ai.stop}>
               Stop

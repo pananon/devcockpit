@@ -128,6 +128,7 @@ export async function buildBrief(onStatus?: (s: string) => void): Promise<Brief>
 
   if (!facts.length) return { recent, focus: [], model: null, usedModel: false };
 
+  if (!getSettings().localAi) return { recent, focus: fallback(), model: null, usedModel: false };
   const status = await ollamaStatus();
   const model = getSettings().localModel ?? status.models[0]?.name ?? null;
   if (!status.running || !model) return { recent, focus: fallback(), model: null, usedModel: false };

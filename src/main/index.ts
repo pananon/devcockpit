@@ -7,17 +7,19 @@ import { applyBackgroundMode, isQuitting, markQuitting, notify, showWindow, star
 import { getSettings, saveSettings } from './config';
 import { APP_ORIGIN, registerAppScheme, serveAppProtocol } from './appProtocol';
 import { buildBrief } from './brief';
+import { demoHandlers } from './demo';
 import { buildReport, isValidTag } from './models';
 import * as ollama from './ollama';
-import { startOllama } from './ollamaInstall';
+import { startOllama, stopOurOllama } from './ollamaInstall';
 import { listPrs } from './prs';
 import { createTerminal, killAll, killTerminal, resizeTerminal, writeTerminal } from './pty';
 import { findRepos, listRepos } from './repos';
 import { makeRunner } from './routineRunner';
 import { deleteRoutine, listRoutines, listRuns, runRoutine, saveRoutine, startScheduler, stopScheduler } from './routines';
-import { getTranscript, listSessions, searchSessions } from './sessions';
-import { scanSystem } from './system';
+import { getTranscript, listSessions, searchSessions, sessionTitles, trashSessions } from './sessions';
+import { scanSystem, systemUsage } from './system';
 import { runTask } from './tasks';
+import { addTodo, completeTodo } from './todos';
 
 // Security baseline: every renderer is sandboxed, isolated, and has no Node access.
 app.enableSandbox();
@@ -30,6 +32,12 @@ if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
 const RENDERER_DIR = path.join(__dirname, '../renderer');
 let win: BrowserWindow | null = null;
+
+// Demo mode keeps its own data folder (and single-instance lock), so it can run
+// next to the real app and never reads or writes the real settings.
+const DEMO = process.argv.includes('--demo');
+if (DEMO) app.setPath('userData', path.join(app.getPath('temp'), 'DevCockpit-demo'));
+const demo = DEMO ? demoHandlers((channel, ...args) => win?.webContents.send(channel, ...args)) : null;
 
 registerAppScheme();
 
@@ -51,16 +59,27 @@ function isTrustedSender(e: IpcMainInvokeEvent | Electron.IpcMainEvent): boolean
   return DEV_URL ? url.startsWith(DEV_URL) : url.startsWith(`${APP_ORIGIN}/`);
 }
 
+/** In demo mode a channel without a fake answer refuses, so real data can never leak in. */
+const impl = (channel: string, fn: (...args: any[]) => unknown) =>
+  demo
+    ? (demo[channel] ??
+      (() => {
+        throw new Error('Not available in demo mode');
+      }))
+    : fn;
+
 function handle(channel: string, fn: (...args: any[]) => unknown) {
+  const run = impl(channel, fn);
   ipcMain.handle(channel, (e, ...args) => {
     if (!isTrustedSender(e)) throw new Error('Untrusted sender');
-    return fn(...args);
+    return run(...args);
   });
 }
 
 function on(channel: string, fn: (...args: any[]) => void) {
+  const run = impl(channel, fn);
   ipcMain.on(channel, (e, ...args) => {
-    if (isTrustedSender(e)) fn(...args);
+    if (isTrustedSender(e)) run(...args);
   });
 }
 
@@ -137,6 +156,37 @@ function registerIpc() {
   handle('sessions:list', () => listSessions(findRepos(getSettings().projectRoots)));
   handle('sessions:transcript', (id: unknown) => getTranscript(str(id, 64)));
   handle('sessions:search', (q: unknown) => searchSessions(str(q, 200)));
+  handle('sessions:delete', async (ids: unknown) => {
+    if (!Array.isArray(ids) || !ids.length || ids.length > 500) throw new Error('Invalid argument');
+    const clean = ids.map((id) => str(id, 64));
+    const titles = sessionTitles(clean);
+    if (!titles.length) return 0;
+    const { response } = await dialog.showMessageBox(win!, {
+      type: 'warning',
+      buttons: ['Move to Recycle Bin', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Delete sessions',
+      message: titles.length === 1 ? `Delete “${titles[0]}”?` : `Delete ${titles.length} sessions?`,
+      detail: `${titles.length > 1 ? `${titles.slice(0, 5).join('\n')}${titles.length > 5 ? `\n…and ${titles.length - 5} more` : ''}\n\n` : ''}The transcripts move to the ${process.platform === 'win32' ? 'Recycle Bin' : 'Trash'}, so you can restore them. Close any terminal that's still running one of these sessions first.`,
+    });
+    return response === 0 ? trashSessions(clean, (p) => shell.trashItem(p)) : 0;
+  });
+  handle('todos:add', (repoPath: unknown, text: unknown) => addTodo(str(repoPath), str(text, 2000)));
+  handle('todos:complete', (repoPath: unknown, todo: any) =>
+    completeTodo(str(repoPath), { file: str(todo?.file, 64), text: str(todo?.text, 2000), line: Number(todo?.line), addedAt: null })
+  );
+  handle('settings:setLocalAi', async (on: unknown) => {
+    const next = saveSettings({ ...getSettings(), localAi: on === true });
+    if (next.localAi) {
+      if (!(await ollama.status()).running) startOllama();
+    } else {
+      await ollama.unloadAll();
+      stopOurOllama();
+    }
+    return next;
+  });
+  handle('settings:setSaveTodos', (on: unknown) => saveSettings({ ...getSettings(), saveTodos: on === true }));
   handle('prs:list', () => listPrs(true));
   handle('shell:openExternal', async (url: unknown) => {
     const u = new URL(str(url));
@@ -152,6 +202,7 @@ function registerIpc() {
   };
   handle('settings:setLocalModel', (t: unknown) => saveSettings({ ...getSettings(), localModel: t == null ? null : tag(t) }));
   handle('ai:scan', async () => buildReport(await scanSystem()));
+  handle('system:usage', () => systemUsage());
   handle('ai:status', () => ollama.status());
   handle('ai:start', () => startOllama());
   handle('ai:pull', (t: unknown) => {
@@ -171,9 +222,10 @@ function registerIpc() {
         : { kind: 'ask', prompt: str((task as { prompt?: unknown })?.prompt, 20000) };
     const taskId = randomUUID();
     const send = (e: object) => win?.webContents.send('ai:event', { taskId, ...e });
-    const status = await ollama.status();
-    const model = getSettings().localModel ?? status.models[0]?.name ?? null;
-    if (!status.running) setImmediate(() => send({ done: true, error: "Ollama isn't running. Open the Local AI tab to set it up." }));
+    const status = getSettings().localAi ? await ollama.status() : null;
+    const model = getSettings().localModel ?? status?.models[0]?.name ?? null;
+    if (!status) setImmediate(() => send({ done: true, error: 'Local AI is off. Turn it on from the status bar or Settings.' }));
+    else if (!status.running) setImmediate(() => send({ done: true, error: "Ollama isn't running. Open the Local AI tab to set it up." }));
     else if (!model) setImmediate(() => send({ done: true, error: 'No local model yet. Download one in the Local AI tab.' }));
     else
       runTask(
@@ -195,6 +247,7 @@ function registerIpc() {
       cwd: str(spec?.cwd ?? ''),
       program: spec?.program === 'shell' || spec?.program === 'ollama-install' ? spec.program : 'claude',
       resumeId: spec?.resumeId ? str(spec.resumeId, 64) : undefined,
+      prompt: spec?.prompt ? str(spec.prompt, 2000) : undefined,
     };
     return createTerminal(
       clean,
@@ -260,7 +313,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!DEV_URL) serveAppProtocol(RENDERER_DIR);
     registerIpc();
     createWindow();
-    startScheduler(runner, onRoutineChange);
+    if (!DEMO) startScheduler(runner, onRoutineChange);
   });
 
   app.on('before-quit', () => {

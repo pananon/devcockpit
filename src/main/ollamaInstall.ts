@@ -1,6 +1,6 @@
 // Installing and starting Ollama. Installs always run visibly in a DevCockpit
 // terminal tab after the user clicks "Install", never silently in the background.
-import { spawn } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -62,10 +62,14 @@ export const isInstalledOnDisk = () => knownBinary() != null;
  * window and no account sign-in, which local models don't need. (Relaunching the
  * desktop app doesn't help when it's already open but stuck on its first-run screen.)
  */
+let ours: ChildProcess | null = null;
+
 export function startOllama(): boolean {
   const bin = knownBinary();
   if (bin) {
-    spawn(bin, ['serve'], { detached: true, stdio: 'ignore', windowsHide: true, env: childEnv({ OLLAMA_HOST: '127.0.0.1:11434' }) }).unref();
+    ours = spawn(bin, ['serve'], { detached: true, stdio: 'ignore', windowsHide: true, env: childEnv({ OLLAMA_HOST: '127.0.0.1:11434' }) });
+    ours.on('exit', () => (ours = null));
+    ours.unref();
     return true;
   }
   if (process.platform === 'darwin' && fs.existsSync('/Applications/Ollama.app')) {
@@ -73,4 +77,12 @@ export function startOllama(): boolean {
     return true;
   }
   return false;
+}
+
+/** Stops the server only if DevCockpit started it; an Ollama the user runs themselves is left alone. */
+export function stopOurOllama(): boolean {
+  if (!ours) return false;
+  ours.kill();
+  ours = null;
+  return true;
 }
