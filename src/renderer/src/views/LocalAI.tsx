@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ModelFit, ModelOption, ModelReport, OllamaStatus, PullProgress } from '@shared/types';
 import type { Actions } from '../App';
 import { AiOutput } from '../components/AiOutput';
@@ -16,7 +16,38 @@ export function LocalAI({ actions }: { actions: Actions }) {
   const [prompt, setPrompt] = useState('');
   const ai = useAi();
 
+  const [installing, setInstalling] = useState(false);
+  const startedRef = useRef(false);
   const refreshStatus = useCallback(() => window.cockpit.ollamaStatus().then(setStatus), []);
+
+  // While an install runs in the terminal, watch for Ollama to appear, then start it once.
+  useEffect(() => {
+    if (!installing) return;
+    const deadline = Date.now() + 15 * 60 * 1000;
+    const timer = setInterval(async () => {
+      const s = await window.cockpit.ollamaStatus();
+      setStatus(s);
+      if (s.installed && !s.running && !startedRef.current) {
+        startedRef.current = true;
+        await window.cockpit.startOllama();
+      }
+      if (s.running || Date.now() > deadline) {
+        setInstalling(false);
+        if (s.running && !report) scan();
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [installing]);
+
+  const install = () => {
+    startedRef.current = false;
+    setInstalling(true);
+    actions.installOllama();
+  };
+  const start = async () => {
+    await window.cockpit.startOllama();
+    setTimeout(refreshStatus, 2500);
+  };
 
   useEffect(() => {
     refreshStatus();
@@ -70,22 +101,30 @@ export function LocalAI({ actions }: { actions: Actions }) {
             <>
               <p>Ollama runs local models. It isn't installed yet.</p>
               <div className="row">
-                <button className="btn primary" onClick={() => actions.openExternal('https://ollama.com/download')}>
-                  Download Ollama
+                <button className="btn primary" onClick={install} disabled={installing}>
+                  {installing ? 'Installing… (see terminal)' : 'Install Ollama'}
                 </button>
-                <button className="btn" onClick={refreshStatus}>
-                  I've installed it
+                <button className="btn" onClick={() => actions.openExternal('https://ollama.com/download')}>
+                  Manual download
                 </button>
               </div>
-              <p className="muted small">DevCockpit never installs software by itself. You install Ollama from its official site.</p>
+              <p className="muted small">
+                Runs the official installer in a terminal below so you can see every step. On Windows that's winget, which checks the installer's
+                SHA-256. Nothing is installed until you click.
+              </p>
             </>
           )}
           {status?.installed && !status.running && (
             <>
-              <p>Ollama is installed but not running. Start it from the Start menu (or run <span className="mono">ollama serve</span>).</p>
-              <button className="btn" onClick={refreshStatus}>
-                Check again
-              </button>
+              <p>Ollama is installed but not running.</p>
+              <div className="row">
+                <button className="btn primary" onClick={start}>
+                  Start Ollama
+                </button>
+                <button className="btn" onClick={refreshStatus}>
+                  Check again
+                </button>
+              </div>
             </>
           )}
           {status?.running && (

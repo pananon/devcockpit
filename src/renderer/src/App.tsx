@@ -23,6 +23,7 @@ export interface Data {
 export interface Actions {
   openClaude: (cwd: string, opts?: { resumeId?: string; title?: string }) => void;
   openShell: (cwd: string) => void;
+  installOllama: () => void;
   openExternal: (url: string) => void;
   go: (view: View, focus?: string) => void;
   refresh: () => void;
@@ -95,6 +96,7 @@ export function App() {
     openClaude: (cwd, opts) =>
       openTerminal({ cwd, program: 'claude', resumeId: opts?.resumeId }, opts?.title ?? `claude · ${baseName(cwd)}`),
     openShell: (cwd) => openTerminal({ cwd, program: 'shell' }, `shell · ${baseName(cwd)}`),
+    installOllama: () => openTerminal({ cwd: '', program: 'ollama-install' }, 'Install Ollama'),
     openExternal: (url) => void window.cockpit.openExternal(url),
     go: (v, f) => {
       setView(v);

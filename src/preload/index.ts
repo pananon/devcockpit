@@ -28,6 +28,7 @@ const api: CockpitApi = {
   setLocalModel: (tag) => ipcRenderer.invoke('settings:setLocalModel', tag),
   scanModels: () => ipcRenderer.invoke('ai:scan'),
   ollamaStatus: () => ipcRenderer.invoke('ai:status'),
+  startOllama: () => ipcRenderer.invoke('ai:start'),
   pullModel: (tag) => ipcRenderer.invoke('ai:pull', tag),
   cancelPull: (tag) => ipcRenderer.send('ai:cancelPull', tag),
   removeModel: (tag) => ipcRenderer.invoke('ai:remove', tag),

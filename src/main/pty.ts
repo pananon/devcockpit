@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import * as pty from 'node-pty';
 import type { TerminalSpec } from '@shared/types';
+import { installScript } from './ollamaInstall';
 
 const terms = new Map<string, pty.IPty>();
 
@@ -19,6 +20,11 @@ function shell(): { file: string; args: string[] } {
 function command(spec: TerminalSpec): { file: string; args: string[] } {
   const sh = shell();
   if (spec.program === 'shell') return sh;
+  if (spec.program === 'ollama-install') {
+    // The script is fixed in the main process; the renderer can only ask for it by name.
+    if (process.platform === 'win32') return { file: sh.file, args: [...sh.args, '-NoExit', '-Command', installScript()] };
+    return { file: sh.file, args: [...sh.args, '-c', `${installScript()}\nexec ${sh.file}`] };
+  }
   const resume = spec.resumeId && /^[0-9a-f-]{36}$/i.test(spec.resumeId) ? ` --resume ${spec.resumeId}` : '';
   if (process.platform === 'win32') {
     // Run claude.exe / claude.cmd directly: npm's claude.ps1 shim is blocked under the

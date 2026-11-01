@@ -2,6 +2,7 @@
 // (which contain your transcripts) never leave the machine through this path.
 import type { OllamaStatus } from '@shared/types';
 import { tryRun } from './exec';
+import { isInstalledOnDisk } from './ollamaInstall';
 
 function base(): string {
   const raw = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
@@ -24,8 +25,8 @@ export async function status(): Promise<OllamaStatus> {
     };
   } catch {
     // Not reachable: is it installed but stopped, or not installed?
-    const cli = await tryRun('ollama', ['--version'], undefined, 5000);
-    return { installed: cli != null, running: false, version: null, models: [] };
+    const installed = isInstalledOnDisk() || (await tryRun('ollama', ['--version'], undefined, 5000)) != null;
+    return { installed, running: false, version: null, models: [] };
   }
 }
 

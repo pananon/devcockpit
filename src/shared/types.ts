@@ -83,8 +83,8 @@ export interface VoiceState {
 
 export interface TerminalSpec {
   cwd: string;
-  /** 'claude' runs Claude Code; 'shell' runs the default shell */
-  program: 'claude' | 'shell';
+  /** 'claude' runs Claude Code; 'shell' the default shell; 'ollama-install' the official Ollama installer */
+  program: 'claude' | 'shell' | 'ollama-install';
   /** resume this Claude Code session */
   resumeId?: string;
   title?: string;
@@ -178,6 +178,7 @@ export interface CockpitApi {
   onTermData(cb: (id: string, data: string) => void): () => void;
   onTermExit(cb: (id: string, code: number) => void): () => void;
   setLocalModel(tag: string | null): Promise<Settings>;
+  startOllama(): Promise<boolean>;
   scanModels(): Promise<ModelReport>;
   ollamaStatus(): Promise<OllamaStatus>;
   pullModel(tag: string): Promise<void>;

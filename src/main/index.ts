@@ -6,6 +6,7 @@ import type { AiTask, Settings, TerminalSpec, VoiceModel } from '@shared/types';
 import { getSettings, saveSettings } from './config';
 import { buildReport, isValidTag } from './models';
 import * as ollama from './ollama';
+import { startOllama } from './ollamaInstall';
 import { listPrs } from './prs';
 import { createTerminal, killAll, killTerminal, resizeTerminal, writeTerminal } from './pty';
 import { findRepos, listRepos } from './repos';
@@ -65,6 +66,15 @@ const str = (v: unknown, max = 4096): string => {
   return v;
 };
 
+/** Turns Ollama's raw network errors into something a person can act on. */
+function friendlyPullError(msg: string): string {
+  if (/dial tcp \[[0-9a-f:]+\]/i.test(msg))
+    return "Download failed: your network's IPv6 connection isn't working, and Ollama doesn't fall back to IPv4. Turning off IPv6 on your network adapter (or fixing it on your router) solves this. Then press Download again; it resumes where it stopped.";
+  if (/max retries exceeded|connectex|timeout|no such host/i.test(msg))
+    return 'Download failed: couldn\'t reach Ollama\'s download server. Check your internet connection or VPN, then press Download again; it resumes where it stopped.';
+  return msg.length > 300 ? `${msg.slice(0, 300)}…` : msg;
+}
+
 function registerIpc() {
   handle('settings:get', () => getSettings());
   handle('settings:setRoots', (roots: unknown): Settings => {
@@ -96,13 +106,14 @@ function registerIpc() {
   handle('settings:setLocalModel', (t: unknown) => saveSettings({ ...getSettings(), localModel: t == null ? null : tag(t) }));
   handle('ai:scan', async () => buildReport(await scanSystem()));
   handle('ai:status', () => ollama.status());
+  handle('ai:start', () => startOllama());
   handle('ai:pull', (t: unknown) => {
     const model = tag(t);
     const send = (p: object) => win?.webContents.send('ai:pull-progress', { tag: model, status: '', ...p });
     ollama
       .pull(model, (p) => send(p))
       .then(() => send({ status: 'success', done: true }))
-      .catch((e) => send({ status: 'error', done: true, error: e?.name === 'AbortError' ? 'Cancelled' : String(e?.message ?? e) }));
+      .catch((e) => send({ status: 'error', done: true, error: e?.name === 'AbortError' ? 'Cancelled' : friendlyPullError(String(e?.message ?? e)) }));
   });
   on('ai:cancelPull', (t: unknown) => ollama.cancelPull(tag(t)));
   handle('ai:remove', (t: unknown) => ollama.remove(tag(t)));
@@ -151,7 +162,7 @@ function registerIpc() {
   handle('term:create', (spec: TerminalSpec) => {
     const clean: TerminalSpec = {
       cwd: str(spec?.cwd ?? ''),
-      program: spec?.program === 'shell' ? 'shell' : 'claude',
+      program: spec?.program === 'shell' || spec?.program === 'ollama-install' ? spec.program : 'claude',
       resumeId: spec?.resumeId ? str(spec.resumeId, 64) : undefined,
     };
     return createTerminal(
