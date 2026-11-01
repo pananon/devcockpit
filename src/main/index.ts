@@ -239,9 +239,13 @@ function createWindow() {
     height: 920,
     minWidth: 960,
     minHeight: 600,
-    backgroundColor: '#0b0f14',
+    backgroundColor: '#04070c',
     title: 'DevCockpit',
+    icon: path.join(app.getAppPath(), 'resources', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     autoHideMenuBar: true,
+    // Our own HUD title bar; the OS keeps drawing the real window buttons, recoloured to match.
+    titleBarStyle: 'hidden',
+    ...(process.platform === 'darwin' ? {} : { titleBarOverlay: { color: '#04070c', symbolColor: '#8fb3cc', height: 34 } }),
     show: false,
     webPreferences: WEB_PREFERENCES,
   });
