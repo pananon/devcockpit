@@ -88,7 +88,7 @@ export async function chat(taskId: string, model: string, messages: ChatMessage[
   const request = (think: boolean) =>
     fetch(`${base()}/api/chat`, {
       method: 'POST',
-      body: JSON.stringify({ model, messages, stream: true, ...(think ? { think: false } : {}), options: { num_ctx: 16384, temperature: 0.3 } }),
+      body: JSON.stringify({ model, messages, stream: true, ...(think ? { think: false } : {}), options: { num_ctx: 8192, temperature: 0.3 } }),
       signal: ctl.signal,
     });
   try {

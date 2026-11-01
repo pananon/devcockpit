@@ -27,7 +27,7 @@ async function summarizePrompt(sessionId: string): Promise<ChatMessage[]> {
       content:
         `Summarise this Claude Code session for the developer who ran it.\n` +
         `Give: 1) Goal (one line) 2) What got done 3) What is still pending or unresolved 4) The best next step.\n\n` +
-        `<data>\n${tail(text, 24000)}\n</data>`,
+        `<data>\n${tail(text, 18000)}\n</data>`, // ~5k tokens, leaves room in the 8k context
     },
   ];
 }
