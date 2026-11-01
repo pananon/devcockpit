@@ -1,0 +1,62 @@
+# Typecheck and build on every PR and on main, on all three desktop platforms,
+# plus an audit of the packages that ship inside the app.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Nothing by default; each job asks for what it needs.
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    timeout-minutes: 20
+    env:
+      # Building the code doesn't need Electron's own binary.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      # No install scripts: this job only inspects packages, it never runs them.
+      - run: npm ci --ignore-scripts
+      # Fails on high or critical advisories in anything that ships in the app.
+      - run: npm audit --omit=dev --audit-level=high
+      # Checks every package's registry signature (and provenance where published).
+      - run: npm audit signatures

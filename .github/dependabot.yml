@@ -1,0 +1,24 @@
+# Weekly update PRs. Electron gets its own PRs because its releases carry
+# Chromium security fixes and shouldn't wait behind a batch of tooling updates.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      electron:
+        patterns: ['electron']
+      tooling:
+        dependency-type: development
+        exclude-patterns: ['electron']
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
