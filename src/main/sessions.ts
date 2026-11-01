@@ -332,3 +332,14 @@ export async function trashSessions(ids: string[], trash: (p: string) => Promise
 }
 
 export const sessionTitles = (ids: string[]) => ids.map((id) => findIndexed(id)?.summary.title).filter((t): t is string => !!t);
+
+/**
+ * Where to resume a session: the folder it was started in (the first working
+ * directory in its transcript), if that still exists. Sessions started in a git
+ * worktree then reopen in that worktree, not the main checkout. null = unknown or gone.
+ */
+export function resumeCwd(id: string): string | null {
+  const entry = findIndexed(id);
+  const first = entry ? Object.keys(entry.cwdCounts)[0] : undefined;
+  return first && fs.existsSync(first) ? first : null;
+}
