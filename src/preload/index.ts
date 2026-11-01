@@ -27,6 +27,7 @@ const api: CockpitApi = {
   onTermExit: (cb) => listen('term:exit', cb),
   setLocalModel: (tag) => ipcRenderer.invoke('settings:setLocalModel', tag),
   scanModels: () => ipcRenderer.invoke('ai:scan'),
+  systemUsage: () => ipcRenderer.invoke('system:usage'),
   ollamaStatus: () => ipcRenderer.invoke('ai:status'),
   startOllama: () => ipcRenderer.invoke('ai:start'),
   pullModel: (tag) => ipcRenderer.invoke('ai:pull', tag),

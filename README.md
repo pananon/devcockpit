@@ -11,6 +11,8 @@
 - **Command palette** (`Ctrl+K`): jump to any repo, session or PR, run a repo's actions, or ask the local model a question. Press `g` then a letter to switch screens.
 - **Focus mode** (`Ctrl+.`): one repo and one next step, with everything else queued behind it. Press `1`, `2` or `3` to switch.
 - **Flow board**: your work as a pipeline: In progress, Ready to push, In review, Shipped. Work that has gone stale is flagged.
+- **Insights**: where your last two weeks went. Prompts per day by repo, Claude spend per repo, and repos "going cold" (uncommitted work nobody has touched for a week) with a button to resume where you left off. Today also shows this week's spend and prompts against last week.
+- **Status bar**: live CPU, RAM, GPU and VRAM use, so you can see when a local model is loaded.
 - **Sessions**: all your Claude Code sessions, grouped by repo and searchable by full text. Read any transcript, or **Resume** it in the right folder.
 - **Pull requests**: yours, the ones waiting for your review, and recently merged ones, across every repo. Uses your existing `gh` login.
 - **Built-in terminal**: real Claude Code and shell tabs inside the app (`Ctrl+\``).

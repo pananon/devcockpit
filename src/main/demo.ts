@@ -17,11 +17,13 @@ import type {
   SessionSummary,
   Settings,
   SystemInfo,
+  SystemUsage,
   TerminalSpec,
   TranscriptItem,
 } from '@shared/types';
 import { buildReport } from './models';
 import { nextRun } from './routines';
+import { dayKey } from './sessions';
 
 type Send = (channel: string, ...args: unknown[]) => void;
 
@@ -92,6 +94,7 @@ const REPOS: Repo[] = [
     ],
   }),
   repo('infra', {
+    uncommitted: [' M staging/main.tf', '?? staging/alerts.tf'],
     log: [
       ['Move staging to the new region', 216],
       ['Nightly database backups', 260],
@@ -101,6 +104,8 @@ const REPOS: Repo[] = [
     remoteUrl: null,
     github: null,
     hasUpstream: false,
+    branch: 'feat/seasons',
+    uncommitted: [' M src/world/weather.ts', ' M src/world/seasons.ts', '?? assets/snow.png', ' M src/main.ts', ' M README.md'],
     log: [['Seasons and weather', 480]],
   }),
 ];
@@ -132,6 +137,8 @@ function session(repoName: string, s: { title: string; prompts: string[]; reply:
     updatedAt: at(s.hoursAgo),
     userTurns: s.prompts.length,
     costUSD: s.cost,
+    promptDays: { [dayKey(at(s.hoursAgo))]: s.prompts.length },
+    costDays: { [dayKey(at(s.hoursAgo))]: s.cost },
     transcript,
   };
 }
@@ -214,6 +221,44 @@ const SESSIONS: DemoSession[] = [
     cost: 1.65,
   }),
 ];
+
+/** Earlier sessions, so Insights has two weeks (and more) of history to chart. */
+const HISTORY: [daysAgo: number, repo: string, title: string, prompts: number, cost: number][] = [
+  [0, 'orbit-api', 'Rate limit headers on every response', 19, 5.12],
+  [2, 'orbit-api', 'Load test the public API', 21, 6.3],
+  [2, 'pocket-ledger', 'Sync queue retries', 6, 1.4],
+  [3, 'pocket-ledger', 'Reproduce the lost-edit bug', 18, 5.4],
+  [4, 'devnotes', 'Fix the index rebuild on Windows', 2, 0.31],
+  [10, 'orbit-api', 'Problem+json error format design', 38, 21.4],
+  [10, 'orbit-web', 'Dashboard hydration warning', 12, 2.95],
+  [11, 'orbit-web', 'Copy tweaks on the landing page', 3, 0.4],
+  [12, 'orbit-api', 'Tenant lookup caching', 14, 3.2],
+  [13, 'orbit-web', 'Pricing page redesign', 22, 11.6],
+  [13, 'pocket-ledger', 'Offline mode spike', 9, 2.2],
+  [13, 'devnotes', 'Tag parser', 6, 0.9],
+  [20, 'pixel-garden', 'Seasons and weather system', 31, 12.4],
+  [25, 'orbit-api', 'Move to Express 5', 44, 18.75],
+  [33, 'orbit-web', 'Next.js upgrade', 27, 9.6],
+  [41, 'pocket-ledger', 'Expense categories', 35, 14.1],
+];
+
+for (const [daysAgo, repoName, title, prompts, cost] of HISTORY) {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  d.setHours(14, 0, 0, 0);
+  const hoursAgo = Math.max(2, (Date.now() - d.getTime()) / 3600_000);
+  const s = session(repoName, {
+    title,
+    prompts: [title, ...Array.from({ length: prompts - 1 }, () => 'Keep going.')],
+    tools: [],
+    reply: 'Done.',
+    hoursAgo,
+    minutes: prompts * 3,
+    cost,
+  });
+  SESSIONS.push(s);
+}
+SESSIONS.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
 const pr = (name: string, number: number, title: string, author: string, hoursAgo: number, extra: Partial<PullRequest> = {}): PullRequest => ({
   repo: `${OWNER}/${name}`,
@@ -401,6 +446,10 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
       }, 1800);
     },
 
+    'system:usage': (): SystemUsage => {
+      const jitter = (base: number, spread: number) => Math.round(base + (Math.random() - 0.5) * spread);
+      return { cpuPct: jitter(18, 14), ramUsedGB: 15.2 + Math.random() * 0.6, ramTotalGB: 32, gpu: { name: 'NVIDIA GeForce RTX 4070', pct: jitter(12, 16), vramUsedGB: 7.4, vramTotalGB: 12 } };
+    },
     'ai:scan': () => buildReport(SYSTEM, false) as Promise<ModelReport>,
     'ai:status': () => ollama,
     'ai:start': () => true,

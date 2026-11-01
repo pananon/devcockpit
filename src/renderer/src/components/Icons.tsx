@@ -39,6 +39,12 @@ export const Icon = {
       <rect x="17" y="4" width="4" height="6" />
     </svg>
   ),
+  insights: () => (
+    <svg {...base}>
+      <path d="M4 20h16" />
+      <path d="M7 16v-5M12 16V6M17 16v-8" />
+    </svg>
+  ),
   routines: () => (
     <svg {...base}>
       <circle cx="12" cy="13" r="8" />

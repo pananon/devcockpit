@@ -14,11 +14,12 @@ import { Workspace } from './views/Workspace';
 import { Sessions } from './views/Sessions';
 import { Prs } from './views/Prs';
 import { Flow } from './views/Flow';
+import { Insights } from './views/Insights';
 import { SettingsView } from './views/Settings';
 import { LocalAI } from './views/LocalAI';
 import { Routines } from './views/Routines';
 
-export type View = 'today' | 'workspace' | 'sessions' | 'prs' | 'flow' | 'routines' | 'ai' | 'settings';
+export type View = 'today' | 'workspace' | 'sessions' | 'prs' | 'flow' | 'insights' | 'routines' | 'ai' | 'settings';
 
 export interface Data {
   repos: Repo[] | null;
@@ -47,6 +48,7 @@ export const NAV: { view: View; label: string; key: string; icon: () => React.JS
   { view: 'sessions', label: 'Sessions', key: 's', icon: Icon.sessions },
   { view: 'prs', label: 'Pull requests', key: 'p', icon: Icon.prs },
   { view: 'flow', label: 'Flow board', key: 'f', icon: Icon.flow },
+  { view: 'insights', label: 'Insights', key: 'i', icon: Icon.insights },
   { view: 'routines', label: 'Routines', key: 'o', icon: Icon.routines },
   { view: 'ai', label: 'Local AI', key: 'a', icon: Icon.ai },
 ];
@@ -243,6 +245,7 @@ export function App() {
             {view === 'sessions' && <Sessions data={data} actions={actions} focus={focus} />}
             {view === 'prs' && <Prs data={data} actions={actions} />}
             {view === 'flow' && <Flow data={data} actions={actions} />}
+            {view === 'insights' && <Insights data={data} actions={actions} />}
             {view === 'routines' && <Routines data={data} />}
             {view === 'ai' && <LocalAI actions={actions} />}
             {view === 'settings' && <SettingsView actions={actions} />}

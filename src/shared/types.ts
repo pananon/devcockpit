@@ -32,6 +32,10 @@ export interface SessionSummary {
   updatedAt: string;
   userTurns: number;
   costUSD: number | null;
+  /** prompts typed per local day, e.g. { "2026-11-02": 14 } */
+  promptDays: Record<string, number>;
+  /** Claude spend per local day in USD */
+  costDays: Record<string, number>;
 }
 
 export type TranscriptItem =
@@ -96,6 +100,14 @@ export interface SystemInfo {
   gpus: GpuInfo[];
   bestGpu: GpuInfo | null;
   freeDiskGB: number | null;
+}
+
+/** Live machine load for the status bar. GPU fields are null when they can't be read. */
+export interface SystemUsage {
+  cpuPct: number;
+  ramUsedGB: number;
+  ramTotalGB: number;
+  gpu: { name: string; pct: number; vramUsedGB: number; vramTotalGB: number } | null;
 }
 
 export interface CatalogModel {
@@ -224,6 +236,7 @@ export interface CockpitApi {
   setLocalModel(tag: string | null): Promise<Settings>;
   startOllama(): Promise<boolean>;
   scanModels(): Promise<ModelReport>;
+  systemUsage(): Promise<SystemUsage>;
   ollamaStatus(): Promise<OllamaStatus>;
   pullModel(tag: string): Promise<void>;
   cancelPull(tag: string): void;

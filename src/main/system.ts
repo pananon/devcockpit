@@ -1,7 +1,7 @@
 // Hardware scan used to decide which local models will run well.
 import fs from 'node:fs';
 import os from 'node:os';
-import type { GpuInfo, SystemInfo } from '@shared/types';
+import type { GpuInfo, SystemInfo, SystemUsage } from '@shared/types';
 import { tryRun } from './exec';
 
 const GB = 1024 ** 3;
@@ -82,4 +82,34 @@ export async function scanSystem(): Promise<SystemInfo> {
     bestGpu: best,
     freeDiskGB: freeDiskGB(os.homedir()),
   };
+}
+
+let lastCpu = os.cpus().map((c) => c.times);
+let hasNvidiaSmi: boolean | null = null;
+
+/** CPU busy share since the previous call, across all cores. */
+function cpuPct(): number {
+  const now = os.cpus().map((c) => c.times);
+  let busy = 0;
+  let total = 0;
+  now.forEach((t, i) => {
+    const p = lastCpu[i] ?? t;
+    const all = t.user + t.nice + t.sys + t.idle + t.irq - (p.user + p.nice + p.sys + p.idle + p.irq);
+    busy += all - (t.idle - p.idle);
+    total += all;
+  });
+  lastCpu = now;
+  return total > 0 ? Math.round((busy / total) * 100) : 0;
+}
+
+/** Live load for the status bar. GPU numbers come from nvidia-smi, so only NVIDIA cards show them. */
+export async function systemUsage(): Promise<SystemUsage> {
+  let gpu: SystemUsage['gpu'] = null;
+  if (hasNvidiaSmi !== false) {
+    const out = await tryRun('nvidia-smi', ['--query-gpu=name,utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits'], undefined, 4000);
+    hasNvidiaSmi = out != null;
+    const [name, pct, used, total] = (out?.split(/\r?\n/)[0] ?? '').split(',').map((s) => s.trim());
+    if (out && Number(total) > 0) gpu = { name, pct: Number(pct) || 0, vramUsedGB: Number(used) / 1024, vramTotalGB: Number(total) / 1024 };
+  }
+  return { cpuPct: cpuPct(), ramUsedGB: (os.totalmem() - os.freemem()) / GB, ramTotalGB: os.totalmem() / GB, gpu };
 }

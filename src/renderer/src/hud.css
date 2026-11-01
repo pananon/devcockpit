@@ -712,3 +712,161 @@ kbd,
 .dock-body {
   overflow: hidden;
 }
+
+/* ---------- Insights ---------- */
+.insights {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ins-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.ins-headline {
+  margin: 0;
+  max-width: 820px;
+  font: 500 34px/1.15 var(--display);
+  color: var(--bright);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ins-headline em {
+  color: var(--ok);
+  font-style: italic;
+}
+.ins-stats {
+  display: flex;
+  gap: 32px;
+}
+.ins-num {
+  font: 600 32px/1 var(--mono);
+  color: var(--bright);
+  margin-bottom: 6px;
+}
+.ins-main,
+.ins-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) minmax(260px, 1fr);
+  gap: 16px;
+}
+.ins-foot {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+.ins-chart {
+  position: relative;
+  height: 260px;
+  display: flex;
+  gap: 6px;
+  padding-top: 24px;
+  border-top: 1px dashed var(--line);
+}
+.ins-col {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.ins-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  min-height: 0;
+}
+.ins-stack > div {
+  flex-basis: 0;
+  min-height: 2px;
+}
+.ins-day {
+  margin-top: 6px;
+  text-align: center;
+  color: var(--muted);
+}
+.ins-day.today {
+  color: var(--bright);
+  font-weight: 600;
+}
+.ins-peak {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: var(--ok);
+}
+.ins-quiet {
+  position: absolute;
+  bottom: 60px;
+  text-align: center;
+  color: var(--muted);
+  font: italic 16px var(--display);
+  pointer-events: none;
+}
+.ins-bar {
+  margin-bottom: 12px;
+}
+.ins-track {
+  height: 7px;
+  margin-top: 5px;
+  background: rgba(56, 200, 255, 0.08);
+}
+.ins-track > div {
+  height: 100%;
+}
+.ins-cold {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ins-cold-days {
+  width: 48px;
+  font: 600 24px var(--mono);
+}
+
+/* ---------- Today: this week ---------- */
+.week {
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.week-num {
+  font: 600 22px/1.1 var(--mono);
+  color: var(--bright);
+}
+.week-repos {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---------- Status bar machine load ---------- */
+.load {
+  display: inline-flex;
+  gap: 12px;
+}
+.load b {
+  font-weight: 500;
+  color: var(--bright);
+}
+.week button.plain {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.week button.plain:hover .week-num {
+  color: var(--accent);
+}

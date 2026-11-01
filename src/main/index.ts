@@ -17,7 +17,7 @@ import { findRepos, listRepos } from './repos';
 import { makeRunner } from './routineRunner';
 import { deleteRoutine, listRoutines, listRuns, runRoutine, saveRoutine, startScheduler, stopScheduler } from './routines';
 import { getTranscript, listSessions, searchSessions } from './sessions';
-import { scanSystem } from './system';
+import { scanSystem, systemUsage } from './system';
 import { runTask } from './tasks';
 
 // Security baseline: every renderer is sandboxed, isolated, and has no Node access.
@@ -170,6 +170,7 @@ function registerIpc() {
   };
   handle('settings:setLocalModel', (t: unknown) => saveSettings({ ...getSettings(), localModel: t == null ? null : tag(t) }));
   handle('ai:scan', async () => buildReport(await scanSystem()));
+  handle('system:usage', () => systemUsage());
   handle('ai:status', () => ollama.status());
   handle('ai:start', () => startOllama());
   handle('ai:pull', (t: unknown) => {
