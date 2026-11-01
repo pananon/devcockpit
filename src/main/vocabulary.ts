@@ -53,7 +53,7 @@ export function correctVocabulary(text: string, vocabulary: string[]): string {
   const out = [...words];
 
   for (let p = 0; p < idx.length; p++) {
-    let best: { n: number; term: Term; score: number } | null = null;
+    let best: { n: number; term: Term; score: number; exact: boolean } | null = null;
     for (let n = 3; n >= 1; n--) {
       if (p + n > idx.length) continue;
       const span = idx.slice(p, p + n).map((i) => words[i]);
@@ -62,7 +62,7 @@ export function correctVocabulary(text: string, vocabulary: string[]): string {
       if (key.length < 5) continue;
       for (const term of terms) {
         if (raw.replace(/[^a-z0-9]/gi, '').toLowerCase() === term.canonical.replace(/[^a-z0-9]/gi, '').toLowerCase()) {
-          best = { n, term, score: 0 };
+          best = { n, term, score: 0, exact: true };
           break;
         }
         // Fuzzy matches across several words are risky: no filler words, near-equal length, stricter threshold.
@@ -71,12 +71,13 @@ export function correctVocabulary(text: string, vocabulary: string[]): string {
         const ratio = d / Math.max(key.length, term.key.length);
         // Inflections differ at the end (athlete/athletic): mishearings differ in the middle.
         const sharesStem = commonPrefix(key, term.key) / Math.min(key.length, term.key.length) >= 0.8;
-        if (ratio <= (n > 1 ? 0.2 : 0.25) && !sharesStem && (!best || ratio < best.score)) best = { n, term, score: ratio };
+        // A perfect phonetic match ("Tatwafit" ~ "tatvafit") is still a correction, not an exact spelling.
+        if (ratio <= (n > 1 ? 0.2 : 0.25) && (!sharesStem || d === 0) && (!best || ratio < best.score)) best = { n, term, score: ratio, exact: false };
       }
       if (best) break;
     }
     // Replace fuzzy matches, and exact matches that were split across words ("dev cockpit").
-    if (best && (best.score > 0 || best.n > 1)) {
+    if (best && (!best.exact || best.n > 1)) {
       const span = idx.slice(p, p + best.n);
       const trailing = words[span[span.length - 1]].match(/[.,!?;:]+$/)?.[0] ?? '';
       out[span[0]] = best.term.canonical + trailing;

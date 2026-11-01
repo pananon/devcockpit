@@ -15,6 +15,7 @@ export function useAi() {
   const [text, setText] = useState('');
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [context, setContext] = useState<string[] | null>(null);
   const taskRef = useRef<string | null>(null);
 
   const stop = useCallback(() => {
@@ -25,10 +26,12 @@ export function useAi() {
     if (taskRef.current) window.cockpit.cancelAi(taskRef.current);
     setText('');
     setError(null);
+    setContext(null);
     setRunning(true);
     const id = await window.cockpit.runAi(task);
     taskRef.current = id;
     listeners.set(id, (e) => {
+      if (e.context) setContext(e.context);
       if (e.text) setText((t) => t + e.text);
       if (e.done) {
         if (e.error) setError(e.error);
@@ -45,9 +48,10 @@ export function useAi() {
     stop();
     setText('');
     setError(null);
+    setContext(null);
   }, [stop]);
 
   useEffect(() => () => stop(), [stop]);
 
-  return { text, running, error, start, stop, reset };
+  return { text, running, error, context, start, stop, reset };
 }

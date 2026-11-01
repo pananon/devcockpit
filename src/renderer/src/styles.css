@@ -876,3 +876,7 @@ select.input {
 .md-list .md-list {
   margin: 2px 0;
 }
+.ai-context {
+  align-items: center;
+  margin-bottom: 8px;
+}

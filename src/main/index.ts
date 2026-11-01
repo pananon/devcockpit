@@ -130,7 +130,13 @@ function registerIpc() {
     if (!status.running) setImmediate(() => send({ done: true, error: "Ollama isn't running. Open the Local AI tab to set it up." }));
     else if (!model) setImmediate(() => send({ done: true, error: 'No local model yet. Download one in the Local AI tab.' }));
     else
-      runTask(taskId, model, clean, (text) => send({ text }))
+      runTask(
+        taskId,
+        model,
+        clean,
+        (text) => send({ text }),
+        (context) => send({ context })
+      )
         .then(() => send({ done: true }))
         .catch((e) => send({ done: true, error: e?.name === 'AbortError' ? 'Stopped' : String(e?.message ?? e) }));
     return taskId;
