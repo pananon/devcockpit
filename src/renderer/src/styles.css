@@ -1,17 +1,24 @@
 :root {
-  --bg: #0b0f14;
-  --panel: #111821;
-  --panel-2: #16202b;
-  --line: #222e3b;
-  --text: #d6dde6;
-  --muted: #7d8b9a;
-  --accent: #f5a524;
-  --accent-ink: #1a1203;
-  --info: #4aa3ff;
-  --ok: #3ecf8e;
+  /* HUD palette: cyan for interaction, amber for priority and warnings, green for healthy. */
+  --bg: #04070c;
+  --panel: rgba(9, 17, 30, 0.88);
+  --panel-2: #0d1a2b;
+  --line: rgba(56, 200, 255, 0.2);
+  --line-strong: rgba(56, 200, 255, 0.45);
+  --text: #d8f1ff;
+  --bright: #e9f8ff;
+  --muted: #8fb3cc;
+  --accent: #38c8ff;
+  --accent-ink: #03111c;
+  --info: #7fdcff;
+  --ok: #3ee0a0;
   --warn: #f5a524;
-  --radius: 10px;
-  --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  --danger: #ff6b8a;
+  --radius: 0px;
+  --cut: 14px;
+  --mono: 'JetBrains Mono', 'Cascadia Code', Consolas, ui-monospace, monospace;
+  --display: 'Chakra Petch', 'IBM Plex Sans', sans-serif;
+  --sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
   color-scheme: dark;
 }
 
@@ -27,9 +34,13 @@ body,
 }
 
 body {
-  background: var(--bg);
+  background-color: var(--bg);
+  /* the faint grid "backplane" every panel sits on */
+  background-image: linear-gradient(rgba(56, 200, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 200, 255, 0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
   color: var(--text);
-  font: 14px/1.5 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font: 14px/1.5 var(--sans);
   overflow: hidden;
 }
 
