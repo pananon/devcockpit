@@ -1,3 +1,4 @@
+# Runs on: pull requests, pushes to main, and weekly.
 # Code scanning, dependency review and OpenSSF Scorecard.
 # GitHub only offers these for public repos on the Free plan, so each job skips
 # itself while the repo is private and turns on by itself at launch.
