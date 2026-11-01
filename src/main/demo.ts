@@ -54,13 +54,24 @@ function repo(name: string, r: Partial<Repo> & { log: [string, number][] }): Rep
   };
 }
 
+let todoLine = 2;
+/** A todo as Claude (or the Todos tab) writes it: "- [ ] text <!-- date -->". */
+const todo = (text: string, daysAgo: number | null, file = 'TODO.md'): Repo['todos'][number] => ({
+  file,
+  text,
+  line: todoLine++,
+  addedAt: daysAgo == null ? null : dayKey(at(daysAgo * 24)),
+});
+
 const REPOS: Repo[] = [
   repo('orbit-api', {
     branch: 'feat/rate-limits',
     uncommitted: [' M src/middleware/rateLimit.ts', ' M src/routes/public.ts', '?? tests/rateLimit.test.ts', ' M package.json'],
     todos: [
-      { file: 'TODO.md', text: 'Document the new 429 response in the API reference' },
-      { file: 'TODO.md', text: 'Add Redis store for rate limits in production' },
+      todo('Swap the in-memory rate-limit store for Redis before production (src/middleware/rateLimit.ts)', 0),
+      todo('Document the 429 response and Retry-After header in the API reference', 1),
+      todo('Load-test /v1/search at 200 req/s; it timed out once at 150', 1),
+      todo('Remove the legacy v0 error format once the mobile app ships 2.4', 12),
     ],
     log: [
       ['Add sliding-window limiter skeleton', 3],
@@ -70,7 +81,10 @@ const REPOS: Repo[] = [
   }),
   repo('orbit-web', {
     ahead: 2,
-    todos: [{ file: 'ROADMAP.md', text: 'Dark mode for the marketing pages' }],
+    todos: [
+      todo('Pricing page: show the annual saving as a percentage, not just "2 months free"', 1),
+      todo('Dark mode for the marketing pages', null, 'ROADMAP.md'),
+    ],
     log: [
       ['Pricing page: annual toggle', 5],
       ['Fix layout shift on the hero image', 7],
@@ -80,6 +94,10 @@ const REPOS: Repo[] = [
   repo('pocket-ledger', {
     branch: 'fix/sync-conflicts',
     uncommitted: [' M app/sync/merge.ts', ' M app/sync/queue.ts'],
+    todos: [
+      todo('Write a test for two phones editing the same expense offline, then finish the "Review changes" sheet', 1),
+      todo('Ask design for the conflict badge icon', 4),
+    ],
     ahead: 1,
     log: [
       ['Keep both edits when offline changes collide', 20],
@@ -87,6 +105,7 @@ const REPOS: Repo[] = [
     ],
   }),
   repo('devnotes', {
+    todos: [todo('Tag search: support "-#tag" to exclude a tag', 2)],
     log: [
       ['Search notes by tag', 28],
       ['Export a note as Markdown', 52],
@@ -105,6 +124,7 @@ const REPOS: Repo[] = [
     github: null,
     hasUpstream: false,
     branch: 'feat/seasons',
+    todos: [todo('Snow should settle on roofs, not float above them (src/world/weather.ts)', 19)],
     uncommitted: [' M src/world/weather.ts', ' M src/world/seasons.ts', '?? assets/snow.png', ' M src/main.ts', ' M README.md'],
     log: [['Seasons and weather', 480]],
   }),
@@ -345,8 +365,23 @@ const runOutput: Record<string, string> = {
 
 // Replayed terminal output. Lines use \r\n because the terminal is in raw mode.
 const C = { dim: '\x1b[2m', cyan: '\x1b[36m', green: '\x1b[32m', yellow: '\x1b[33m', bold: '\x1b[1m', reset: '\x1b[0m' };
-const claudeReplay = (cwd: string) =>
-  [
+const claudeReplay = (cwd: string, prompt?: string) =>
+  prompt
+    ? [
+        `${C.cyan}${C.bold}✻ Claude Code${C.reset}`,
+        `${C.dim}  ${cwd}${C.reset}`,
+        '',
+        `${C.bold}> ${prompt}${C.reset}`,
+        '',
+        `${C.green}●${C.reset} Read(TODO.md)`,
+        `${C.green}●${C.reset} Grep(${prompt.split(': ').pop()?.split(' ').slice(0, 2).join(' ')})`,
+        '',
+        `${C.green}●${C.reset} Here's my plan: read the code this touches, make the change, then run the tests.`,
+        '  Want me to start?',
+        '',
+        '> ',
+      ].join('\r\n')
+    : [
     `${C.cyan}${C.bold}✻ Claude Code${C.reset}`,
     `${C.dim}  ${cwd}${C.reset}`,
     '',
@@ -367,7 +402,7 @@ const claudeReplay = (cwd: string) =>
   ].join('\r\n');
 
 export function demoSettings(): Settings {
-  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false };
+  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true };
 }
 
 /** Fake implementations for every IPC channel, keyed by channel name. */
@@ -407,6 +442,22 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
     'settings:setRoots': () => demoSettings(),
     'settings:setBackground': () => demoSettings(),
     'settings:setLocalModel': () => demoSettings(),
+    'settings:setSaveTodos': () => demoSettings(),
+    'todos:add': (repoPath: string, text: string) => {
+      REPOS.find((r) => r.path === repoPath)?.todos.unshift(todo(String(text).trim(), 0));
+    },
+    'todos:complete': (repoPath: string, t: { line: number }) => {
+      const r = REPOS.find((x) => x.path === repoPath);
+      if (r) r.todos = r.todos.filter((x) => x.line !== t?.line);
+    },
+    'sessions:delete': (ids: string[]) => {
+      const before = SESSIONS.length;
+      for (const id of ids ?? []) {
+        const i = SESSIONS.findIndex((s) => s.id === id);
+        if (i >= 0) SESSIONS.splice(i, 1);
+      }
+      return before - SESSIONS.length;
+    },
     'dialog:pickFolder': () => null,
     'shell:openExternal': () => undefined,
 
@@ -496,7 +547,7 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
       const shellPrompt = process.platform === 'win32' ? `PS ${cwd}> ` : `${C.green}dev@cockpit${C.reset}:${C.cyan}${cwd.replace('/home/dev', '~')}${C.reset}$ `;
       const isClaude = spec?.program !== 'shell' && spec?.program !== 'ollama-install';
       terms.set(id, { prompt: isClaude ? '> ' : shellPrompt, line: '' });
-      setTimeout(() => send('term:data', id, isClaude ? claudeReplay(cwd) : shellPrompt), 150);
+      setTimeout(() => send('term:data', id, isClaude ? claudeReplay(cwd, spec?.prompt) : shellPrompt), 150);
       return id;
     },
     // Typing is echoed locally so the terminal feels alive; nothing is executed.

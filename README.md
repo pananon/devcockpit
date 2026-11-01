@@ -13,7 +13,8 @@
 - **Flow board**: your work as a pipeline: In progress, Ready to push, In review, Shipped. Work that has gone stale is flagged.
 - **Insights**: where your last two weeks went. Prompts per day by repo, Claude spend per repo, and repos "going cold" (uncommitted work nobody has touched for a week) with a button to resume where you left off. Today also shows this week's spend and prompts against last week.
 - **Status bar**: live CPU, RAM, GPU and VRAM use, so you can see when a local model is loaded.
-- **Sessions**: all your Claude Code sessions, grouped by repo and searchable by full text. Read any transcript, or **Resume** it in the right folder.
+- **Sessions**: all your Claude Code sessions, grouped by repo and searchable by full text. Read any transcript, **Resume** it in the right folder, or delete old ones (they go to the Recycle Bin, so nothing is lost by accident).
+- **Todos**: every open checklist item in your repos' `TODO.md`, newest first. In a Claude session opened from DevCockpit, say "add that to my todos" and Claude writes it there with today's date; **Continue** starts a new session on it. You can turn this off in Settings.
 - **Pull requests**: yours, the ones waiting for your review, and recently merged ones, across every repo. Uses your existing `gh` login.
 - **Built-in terminal**: real Claude Code and shell tabs inside the app (`Ctrl+\``).
 - **Routines**: scheduled jobs (daily brief, questions to the local model, read-only Claude Code tasks), with notifications and an optional tray mode so they run with the window closed.

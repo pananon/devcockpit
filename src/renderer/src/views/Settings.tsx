@@ -3,9 +3,13 @@ import type { Actions } from '../App';
 
 export function SettingsView({ actions }: { actions: Actions }) {
   const [roots, setRoots] = useState<string[] | null>(null);
+  const [saveTodos, setSaveTodos] = useState(true);
 
   useEffect(() => {
-    window.cockpit.getSettings().then((s) => setRoots(s.projectRoots));
+    window.cockpit.getSettings().then((s) => {
+      setRoots(s.projectRoots);
+      setSaveTodos(s.saveTodos);
+    });
   }, []);
 
   const save = async (next: string[]) => {
@@ -42,6 +46,25 @@ export function SettingsView({ actions }: { actions: Actions }) {
         <button className="btn" onClick={add}>
           Add folder…
         </button>
+      </section>
+
+      <section className="card">
+        <h3>Claude sessions</h3>
+        <label className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={saveTodos}
+            onChange={async (e) => setSaveTodos((await window.cockpit.setSaveTodos(e.target.checked)).saveTodos)}
+            style={{ marginTop: 3 }}
+          />
+          <span>
+            Save todos from Claude sessions
+            <span className="muted small" style={{ display: 'block', marginTop: 4 }}>
+              In sessions opened from DevCockpit, say “add that to my todos” or “save this for later” and Claude adds a line to the repo's TODO.md, dated
+              today. It shows up in the Todos tab, where Continue picks it up in a new session. Applies to sessions you open after changing this.
+            </span>
+          </span>
+        </label>
       </section>
 
       <section className="card">

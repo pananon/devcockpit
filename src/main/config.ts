@@ -17,6 +17,7 @@ function defaultRoots(): string[] {
 
 const DEFAULTS = {
   backgroundMode: false,
+  saveTodos: true,
 };
 
 export function getSettings(): Settings {
@@ -27,6 +28,7 @@ export function getSettings(): Settings {
         projectRoots: s.projectRoots.filter((r) => typeof r === 'string'),
         localModel: typeof s.localModel === 'string' ? s.localModel : null,
         backgroundMode: s.backgroundMode === true,
+        saveTodos: s.saveTodos !== false,
       };
     }
   } catch {

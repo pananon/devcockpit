@@ -15,11 +15,12 @@ import { Sessions } from './views/Sessions';
 import { Prs } from './views/Prs';
 import { Flow } from './views/Flow';
 import { Insights } from './views/Insights';
+import { Todos } from './views/Todos';
 import { SettingsView } from './views/Settings';
 import { LocalAI } from './views/LocalAI';
 import { Routines } from './views/Routines';
 
-export type View = 'today' | 'workspace' | 'sessions' | 'prs' | 'flow' | 'insights' | 'routines' | 'ai' | 'settings';
+export type View = 'today' | 'workspace' | 'sessions' | 'todos' | 'prs' | 'flow' | 'insights' | 'routines' | 'ai' | 'settings';
 
 export interface Data {
   repos: Repo[] | null;
@@ -29,7 +30,7 @@ export interface Data {
 }
 
 export interface Actions {
-  openClaude: (cwd: string, opts?: { resumeId?: string; title?: string }) => void;
+  openClaude: (cwd: string, opts?: { resumeId?: string; title?: string; prompt?: string }) => void;
   openShell: (cwd: string) => void;
   installOllama: () => void;
   openExternal: (url: string) => void;
@@ -46,6 +47,7 @@ export const NAV: { view: View; label: string; key: string; icon: () => React.JS
   { view: 'today', label: 'Today', key: 't', icon: Icon.today },
   { view: 'workspace', label: 'Workspace', key: 'w', icon: Icon.workspace },
   { view: 'sessions', label: 'Sessions', key: 's', icon: Icon.sessions },
+  { view: 'todos', label: 'Todos', key: 'd', icon: Icon.todos },
   { view: 'prs', label: 'Pull requests', key: 'p', icon: Icon.prs },
   { view: 'flow', label: 'Flow board', key: 'f', icon: Icon.flow },
   { view: 'insights', label: 'Insights', key: 'i', icon: Icon.insights },
@@ -115,7 +117,7 @@ export function App() {
 
   const actions: Actions = {
     openClaude: (cwd, opts) =>
-      openTerminal({ cwd, program: 'claude', resumeId: opts?.resumeId }, opts?.title ?? `claude · ${baseName(cwd)}`),
+      openTerminal({ cwd, program: 'claude', resumeId: opts?.resumeId, prompt: opts?.prompt }, opts?.title ?? `claude · ${baseName(cwd)}`),
     openShell: (cwd) => openTerminal({ cwd, program: 'shell' }, `shell · ${baseName(cwd)}`),
     installOllama: () => openTerminal({ cwd: '', program: 'ollama-install' }, 'Install Ollama'),
     openExternal: (url) => void window.cockpit.openExternal(url),
@@ -245,6 +247,7 @@ export function App() {
             {view === 'sessions' && <Sessions data={data} actions={actions} focus={focus} />}
             {view === 'prs' && <Prs data={data} actions={actions} />}
             {view === 'flow' && <Flow data={data} actions={actions} />}
+            {view === 'todos' && <Todos data={data} actions={actions} currentRepo={currentRepoPath()} />}
             {view === 'insights' && <Insights data={data} actions={actions} />}
             {view === 'routines' && <Routines data={data} />}
             {view === 'ai' && <LocalAI actions={actions} />}

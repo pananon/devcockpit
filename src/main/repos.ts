@@ -40,21 +40,33 @@ export function parseGithub(url: string | null): string | null {
   return m ? `${m[1]}/${m[2]}` : null;
 }
 
+/** "- [ ] Fix login <!-- 2026-11-01 -->" -> { text: "Fix login", addedAt: "2026-11-01" } */
+export function parseTodoLine(line: string): { text: string; addedAt: string | null } | null {
+  const m = line.match(/^\s*[-*] \[ \]\s+(.+)/);
+  if (!m) return null;
+  const date = m[1].match(/<!--\s*(\d{4}-\d{2}-\d{2})\s*-->/);
+  return { text: m[1].replace(/<!--[\s\S]*?-->/g, '').trim(), addedAt: date?.[1] ?? null };
+}
+
+/** Todo files at the root of a repo, by their real names. */
+export function todoFiles(repo: string): string[] {
+  try {
+    return fs.readdirSync(repo).filter((n) => TODO_FILES.includes(n.toLowerCase()));
+  } catch {
+    return [];
+  }
+}
+
 function readTodos(repo: string): Repo['todos'] {
   const todos: Repo['todos'] = [];
-  let entries: string[] = [];
-  try {
-    entries = fs.readdirSync(repo);
-  } catch {
-    return todos;
-  }
-  for (const name of entries.filter((n) => TODO_FILES.includes(n.toLowerCase()))) {
+  for (const name of todoFiles(repo)) {
     try {
-      for (const line of fs.readFileSync(path.join(repo, name), 'utf8').split(/\r?\n/)) {
-        const m = line.match(/^\s*[-*] \[ \]\s+(.+)/);
-        if (m) todos.push({ file: name, text: m[1].trim() });
-        if (todos.length >= 25) return todos;
-      }
+      fs.readFileSync(path.join(repo, name), 'utf8')
+        .split(/\r?\n/)
+        .forEach((line, i) => {
+          const t = parseTodoLine(line);
+          if (t?.text && todos.length < 100) todos.push({ file: name, line: i, ...t });
+        });
     } catch {
       // unreadable file: skip
     }

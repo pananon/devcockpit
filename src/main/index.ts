@@ -16,9 +16,10 @@ import { createTerminal, killAll, killTerminal, resizeTerminal, writeTerminal } 
 import { findRepos, listRepos } from './repos';
 import { makeRunner } from './routineRunner';
 import { deleteRoutine, listRoutines, listRuns, runRoutine, saveRoutine, startScheduler, stopScheduler } from './routines';
-import { getTranscript, listSessions, searchSessions } from './sessions';
+import { getTranscript, listSessions, searchSessions, sessionTitles, trashSessions } from './sessions';
 import { scanSystem, systemUsage } from './system';
 import { runTask } from './tasks';
+import { addTodo, completeTodo } from './todos';
 
 // Security baseline: every renderer is sandboxed, isolated, and has no Node access.
 app.enableSandbox();
@@ -155,6 +156,27 @@ function registerIpc() {
   handle('sessions:list', () => listSessions(findRepos(getSettings().projectRoots)));
   handle('sessions:transcript', (id: unknown) => getTranscript(str(id, 64)));
   handle('sessions:search', (q: unknown) => searchSessions(str(q, 200)));
+  handle('sessions:delete', async (ids: unknown) => {
+    if (!Array.isArray(ids) || !ids.length || ids.length > 500) throw new Error('Invalid argument');
+    const clean = ids.map((id) => str(id, 64));
+    const titles = sessionTitles(clean);
+    if (!titles.length) return 0;
+    const { response } = await dialog.showMessageBox(win!, {
+      type: 'warning',
+      buttons: ['Move to Recycle Bin', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Delete sessions',
+      message: titles.length === 1 ? `Delete “${titles[0]}”?` : `Delete ${titles.length} sessions?`,
+      detail: `${titles.length > 1 ? `${titles.slice(0, 5).join('\n')}${titles.length > 5 ? `\n…and ${titles.length - 5} more` : ''}\n\n` : ''}The transcripts move to the ${process.platform === 'win32' ? 'Recycle Bin' : 'Trash'}, so you can restore them. Close any terminal that's still running one of these sessions first.`,
+    });
+    return response === 0 ? trashSessions(clean, (p) => shell.trashItem(p)) : 0;
+  });
+  handle('todos:add', (repoPath: unknown, text: unknown) => addTodo(str(repoPath), str(text, 2000)));
+  handle('todos:complete', (repoPath: unknown, todo: any) =>
+    completeTodo(str(repoPath), { file: str(todo?.file, 64), text: str(todo?.text, 2000), line: Number(todo?.line), addedAt: null })
+  );
+  handle('settings:setSaveTodos', (on: unknown) => saveSettings({ ...getSettings(), saveTodos: on === true }));
   handle('prs:list', () => listPrs(true));
   handle('shell:openExternal', async (url: unknown) => {
     const u = new URL(str(url));
@@ -214,6 +236,7 @@ function registerIpc() {
       cwd: str(spec?.cwd ?? ''),
       program: spec?.program === 'shell' || spec?.program === 'ollama-install' ? spec.program : 'claude',
       resumeId: spec?.resumeId ? str(spec.resumeId, 64) : undefined,
+      prompt: spec?.prompt ? str(spec.prompt, 2000) : undefined,
     };
     return createTerminal(
       clean,

@@ -306,3 +306,29 @@ export async function getTranscript(id: string): Promise<TranscriptItem[]> {
   }
   return items;
 }
+
+/**
+ * Moves sessions to the Recycle Bin / Trash: the transcript and its sidecar folder
+ * (subagent and tool-output files). Paths come from our own index, never the renderer.
+ */
+export async function trashSessions(ids: string[], trash: (p: string) => Promise<void>): Promise<number> {
+  let removed = 0;
+  for (const id of ids) {
+    const entry = findIndexed(id);
+    if (!entry) continue;
+    const file = entry.summary.file;
+    const sidecar = path.join(path.dirname(file), id);
+    try {
+      await trash(file);
+      if (/^[0-9a-f-]{36}$/i.test(id) && fs.existsSync(sidecar)) await trash(sidecar);
+      index!.delete(file);
+      removed++;
+    } catch {
+      // locked or already gone: leave it in the list
+    }
+  }
+  if (removed) saveIndex();
+  return removed;
+}
+
+export const sessionTitles = (ids: string[]) => ids.map((id) => findIndexed(id)?.summary.title).filter((t): t is string => !!t);

@@ -14,7 +14,16 @@ export interface Repo {
   lastCommit: { hash: string; subject: string; date: string } | null;
   recentCommits: { hash: string; subject: string; date: string }[];
   /** unchecked "- [ ]" items from TODO.md / actions.md / ROADMAP.md */
-  todos: { file: string; text: string }[];
+  todos: Todo[];
+}
+
+export interface Todo {
+  file: string;
+  text: string;
+  /** 0-based line in the file, used to tick it off */
+  line: number;
+  /** from a trailing <!-- YYYY-MM-DD --> marker, if present */
+  addedAt: string | null;
 }
 
 export interface SessionSummary {
@@ -73,6 +82,8 @@ export interface Settings {
   localModel: string | null;
   /** keep running in the tray and start at login, so routines run with the window closed */
   backgroundMode: boolean;
+  /** Claude sessions opened from DevCockpit may add todos to the repo's TODO.md when asked */
+  saveTodos: boolean;
 }
 
 export interface TerminalSpec {
@@ -81,6 +92,8 @@ export interface TerminalSpec {
   program: 'claude' | 'shell' | 'ollama-install';
   /** resume this Claude Code session */
   resumeId?: string;
+  /** first message for a new Claude session */
+  prompt?: string;
   title?: string;
 }
 
@@ -225,6 +238,11 @@ export interface CockpitApi {
   listSessions(): Promise<SessionSummary[]>;
   getTranscript(id: string): Promise<TranscriptItem[]>;
   searchSessions(query: string): Promise<SessionSearchHit[]>;
+  /** asks for confirmation, then moves the transcripts to the Recycle Bin; resolves to how many were removed */
+  deleteSessions(ids: string[]): Promise<number>;
+  addTodo(repoPath: string, text: string): Promise<void>;
+  completeTodo(repoPath: string, todo: Todo): Promise<void>;
+  setSaveTodos(on: boolean): Promise<Settings>;
   listPrs(): Promise<PrBuckets>;
   openExternal(url: string): Promise<void>;
   termCreate(spec: TerminalSpec): Promise<string>;

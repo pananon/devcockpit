@@ -870,3 +870,52 @@ kbd,
 .week button.plain:hover .week-num {
   color: var(--accent);
 }
+
+/* ---------- Todos ---------- */
+button.chip {
+  cursor: pointer;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+}
+button.chip.on {
+  background: rgba(56, 200, 255, 0.14);
+  border-color: var(--accent);
+}
+.todo-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 14px;
+  margin-bottom: 6px;
+  border: 1px solid var(--line);
+  border-left: 3px solid;
+}
+.todo-row:hover {
+  border-color: var(--line-strong);
+}
+.todo-check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.todo-check:hover {
+  border-color: var(--ok);
+  background: rgba(62, 224, 160, 0.18);
+}
+.todo-text {
+  font-size: 15px;
+  color: var(--bright);
+  margin-bottom: 3px;
+}
+.btn.danger {
+  color: var(--danger);
+  border-color: rgba(255, 107, 138, 0.5);
+}
+.btn.danger:hover:not(:disabled) {
+  background: rgba(255, 107, 138, 0.12);
+  border-color: var(--danger);
+}
