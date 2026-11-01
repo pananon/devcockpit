@@ -2,7 +2,22 @@
 
 **The cockpit for your dev day.** One desktop app that shows everything you're working on locally: every repo, every Claude Code session, every open pull request. Resume any session in the built-in terminal with one click.
 
-> Status: early development (Phase 4 in progress: installers and launch). Not released yet.
+> Status: early development. Not released yet.
+
+![DevCockpit's Today screen: priorities, session timeline, repos and pull requests](docs/screenshots/today.png)
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/insights.png" alt="Insights: prompts per day by repo, Claude spend and repos going cold" /></td>
+    <td><img src="docs/screenshots/todos.png" alt="Todos from every repo, grouped by when they were added" /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/workspace.png" alt="Workspace: every repo as a tree with changes, sessions, PRs and todos" /></td>
+    <td><img src="docs/screenshots/terminal.png" alt="Claude Code running in the built-in terminal" /></td>
+  </tr>
+</table>
+
+<sub>Screenshots use demo mode: every repo, session and number in them is made up.</sub>
 
 ## What it does
 
@@ -24,7 +39,8 @@
 
 - **Phase 2 (done):** local AI, a fact-grounded daily brief, and formatted transcripts.
 - **Phase 3 (done):** routines. Two features were built and then left out of the main app on purpose: an email assistant, because no mailbox access means no stored credentials, and voice input, which wasn't polished enough to ship. Voice lives on the `feature/voice` branch.
-- **Phase 4:** installers for Windows, macOS and Linux, a demo mode, and security CI.
+- **Phase 4 (done):** a Windows installer (macOS and Linux builds configured), a hardened package, demo mode, Insights, Todos, a local AI switch, security CI and contributor docs.
+- **Next:** signed release builds for all three platforms, then the public launch.
 
 ## Security
 
@@ -52,6 +68,10 @@ npm run demo       # run with made-up data
 ```
 
 Demo mode fills every screen with fictional repos, sessions and PRs, so screenshots and screen recordings never show your real work. It reads nothing from your disk, runs no commands, and keeps its own settings. The terminal replays a sample session and doesn't run anything you type. The installed app takes the same `--demo` flag.
+
+## Contributing
+
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md): it covers the code layout and the security rules every change follows. Please report vulnerabilities privately (see [SECURITY.md](SECURITY.md)).
 
 ## License
 

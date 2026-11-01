@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest an idea for DevCockpit.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe your workflow and where it hurts, before the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to see?
+    validations:
+      required: true
+  - type: checkboxes
+    id: fit
+    attributes:
+      label: Fit with the project
+      description: DevCockpit stays local, stores no credentials, and works without a local model. See CONTRIBUTING.md.
+      options:
+        - label: This works without storing passwords or tokens, and without sending data anywhere new.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
