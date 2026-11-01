@@ -18,11 +18,16 @@ function defaultRoots(): string[] {
 export function getSettings(): Settings {
   try {
     const s = JSON.parse(fs.readFileSync(file(), 'utf8')) as Partial<Settings>;
-    if (Array.isArray(s.projectRoots)) return { projectRoots: s.projectRoots.filter((r) => typeof r === 'string') };
+    if (Array.isArray(s.projectRoots)) {
+      return {
+        projectRoots: s.projectRoots.filter((r) => typeof r === 'string'),
+        localModel: typeof s.localModel === 'string' ? s.localModel : null,
+      };
+    }
   } catch {
     // first run or unreadable: fall through to defaults
   }
-  return { projectRoots: defaultRoots() };
+  return { projectRoots: defaultRoots(), localModel: null };
 }
 
 export function saveSettings(s: Settings): Settings {

@@ -25,6 +25,16 @@ const api: CockpitApi = {
   termKill: (id) => ipcRenderer.send('term:kill', id),
   onTermData: (cb) => listen('term:data', cb),
   onTermExit: (cb) => listen('term:exit', cb),
+  setLocalModel: (tag) => ipcRenderer.invoke('settings:setLocalModel', tag),
+  scanModels: () => ipcRenderer.invoke('ai:scan'),
+  ollamaStatus: () => ipcRenderer.invoke('ai:status'),
+  pullModel: (tag) => ipcRenderer.invoke('ai:pull', tag),
+  cancelPull: (tag) => ipcRenderer.send('ai:cancelPull', tag),
+  removeModel: (tag) => ipcRenderer.invoke('ai:remove', tag),
+  onPullProgress: (cb) => listen('ai:pull-progress', cb),
+  runAi: (task) => ipcRenderer.invoke('ai:run', task),
+  cancelAi: (id) => ipcRenderer.send('ai:cancel', id),
+  onAiEvent: (cb) => listen('ai:event', cb),
 };
 
 contextBridge.exposeInMainWorld('cockpit', api);

@@ -1,12 +1,17 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, session, type IpcMainInvokeEvent } from 'electron';
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Settings, TerminalSpec } from '@shared/types';
+import type { AiTask, Settings, TerminalSpec } from '@shared/types';
 import { getSettings, saveSettings } from './config';
+import { buildReport, isValidTag } from './models';
+import * as ollama from './ollama';
 import { listPrs } from './prs';
 import { createTerminal, killAll, killTerminal, resizeTerminal, writeTerminal } from './pty';
 import { findRepos, listRepos } from './repos';
 import { getTranscript, listSessions, searchSessions } from './sessions';
+import { scanSystem } from './system';
+import { runTask } from './tasks';
 
 // Security baseline: every renderer is sandboxed, isolated, and has no Node access.
 app.enableSandbox();
@@ -59,12 +64,52 @@ function registerIpc() {
   handle('sessions:list', () => listSessions(findRepos(getSettings().projectRoots)));
   handle('sessions:transcript', (id: unknown) => getTranscript(str(id, 64)));
   handle('sessions:search', (q: unknown) => searchSessions(str(q, 200)));
-  handle('prs:list', () => listPrs());
+  handle('prs:list', () => listPrs(true));
   handle('shell:openExternal', async (url: unknown) => {
     const u = new URL(str(url));
     if (u.protocol !== 'https:') throw new Error('Only https links can be opened');
     await shell.openExternal(u.toString());
   });
+
+  // Local AI (Ollama)
+  const tag = (v: unknown) => {
+    const t = str(v, 128);
+    if (!isValidTag(t)) throw new Error('Invalid model name');
+    return t;
+  };
+  handle('settings:setLocalModel', (t: unknown) => saveSettings({ ...getSettings(), localModel: t == null ? null : tag(t) }));
+  handle('ai:scan', async () => buildReport(await scanSystem()));
+  handle('ai:status', () => ollama.status());
+  handle('ai:pull', (t: unknown) => {
+    const model = tag(t);
+    const send = (p: object) => win?.webContents.send('ai:pull-progress', { tag: model, status: '', ...p });
+    ollama
+      .pull(model, (p) => send(p))
+      .then(() => send({ status: 'success', done: true }))
+      .catch((e) => send({ status: 'error', done: true, error: e?.name === 'AbortError' ? 'Cancelled' : String(e?.message ?? e) }));
+  });
+  on('ai:cancelPull', (t: unknown) => ollama.cancelPull(tag(t)));
+  handle('ai:remove', (t: unknown) => ollama.remove(tag(t)));
+  handle('ai:run', async (task: AiTask) => {
+    const clean: AiTask =
+      task?.kind === 'summarize'
+        ? { kind: 'summarize', sessionId: str(task.sessionId, 64) }
+        : task?.kind === 'brief'
+          ? { kind: 'brief' }
+          : { kind: 'ask', prompt: str((task as { prompt?: unknown })?.prompt, 20000) };
+    const taskId = randomUUID();
+    const send = (e: object) => win?.webContents.send('ai:event', { taskId, ...e });
+    const status = await ollama.status();
+    const model = getSettings().localModel ?? status.models[0]?.name ?? null;
+    if (!status.running) setImmediate(() => send({ done: true, error: "Ollama isn't running. Open the Local AI tab to set it up." }));
+    else if (!model) setImmediate(() => send({ done: true, error: 'No local model yet. Download one in the Local AI tab.' }));
+    else
+      runTask(taskId, model, clean, (text) => send({ text }))
+        .then(() => send({ done: true }))
+        .catch((e) => send({ done: true, error: e?.name === 'AbortError' ? 'Stopped' : String(e?.message ?? e) }));
+    return taskId;
+  });
+  on('ai:cancel', (id: unknown) => ollama.cancelChat(str(id, 64)));
 
   handle('term:create', (spec: TerminalSpec) => {
     const clean: TerminalSpec = {

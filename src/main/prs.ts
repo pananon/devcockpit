@@ -18,7 +18,17 @@ async function search(args: string[]): Promise<PullRequest[]> {
   }));
 }
 
-export async function listPrs(): Promise<PrBuckets> {
+let cache: { at: number; value: PrBuckets } | null = null;
+
+/** Cached for a minute so the Today brief and the PR view don't each hit GitHub. */
+export async function listPrs(force = false): Promise<PrBuckets> {
+  if (!force && cache && Date.now() - cache.at < 60_000) return cache.value;
+  const value = await fetchPrs();
+  if (!value.error) cache = { at: Date.now(), value };
+  return value;
+}
+
+async function fetchPrs(): Promise<PrBuckets> {
   try {
     const [mine, reviewRequested, recentlyMerged] = await Promise.all([
       search(['--author=@me', '--state=open', '--sort=updated']),

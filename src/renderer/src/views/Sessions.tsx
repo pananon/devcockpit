@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { SessionSearchHit, SessionSummary, TranscriptItem } from '@shared/types';
 import type { Actions, Data } from '../App';
+import { AiOutput } from '../components/AiOutput';
+import { useAi } from '../useAi';
 import { ago, baseName } from '../util';
 
 const PAGE = 300;
@@ -89,10 +91,12 @@ function SessionDetail({ session, actions }: { session: SessionSummary; actions:
   const [items, setItems] = useState<TranscriptItem[] | null>(null);
   const [shown, setShown] = useState(PAGE);
   const [showTools, setShowTools] = useState(false);
+  const summary = useAi();
 
   useEffect(() => {
     setItems(null);
     setShown(PAGE);
+    summary.reset();
     window.cockpit.getTranscript(session.id).then(setItems);
   }, [session.id]);
 
@@ -114,12 +118,23 @@ function SessionDetail({ session, actions }: { session: SessionSummary; actions:
           <button className="btn primary" onClick={() => actions.openClaude(session.repoPath ?? session.cwd, { resumeId: session.id, title: session.title })}>
             Resume
           </button>
+          <button className="btn" onClick={() => (summary.running ? summary.stop() : summary.start({ kind: 'summarize', sessionId: session.id }))}>
+            {summary.running ? 'Stop' : 'Summarise locally'}
+          </button>
           <label className="check">
             <input type="checkbox" checked={showTools} onChange={(e) => setShowTools(e.target.checked)} /> Tool calls
           </label>
         </div>
       </header>
 
+      {(summary.text || summary.running || summary.error) && (
+        <section className="card">
+          <h3>
+            Summary <span className="muted">· local model</span>
+          </h3>
+          <AiOutput {...summary} />
+        </section>
+      )}
       {items === null && <p className="muted">Loading transcript…</p>}
       {start > 0 && (
         <button className="btn small" onClick={() => setShown((n) => n + PAGE)}>

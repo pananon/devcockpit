@@ -8,8 +8,9 @@ import { Repos } from './views/Repos';
 import { Sessions } from './views/Sessions';
 import { Prs } from './views/Prs';
 import { SettingsView } from './views/Settings';
+import { LocalAI } from './views/LocalAI';
 
-export type View = 'today' | 'repos' | 'sessions' | 'prs' | 'settings';
+export type View = 'today' | 'repos' | 'sessions' | 'prs' | 'ai' | 'settings';
 
 export interface Data {
   repos: Repo[] | null;
@@ -30,7 +31,8 @@ const NAV: { view: View; label: string; key: string }[] = [
   { view: 'repos', label: 'Repos', key: '2' },
   { view: 'sessions', label: 'Sessions', key: '3' },
   { view: 'prs', label: 'Pull requests', key: '4' },
-  { view: 'settings', label: 'Settings', key: '5' },
+  { view: 'ai', label: 'Local AI', key: '5' },
+  { view: 'settings', label: 'Settings', key: '6' },
 ];
 
 export function App() {
@@ -140,6 +142,7 @@ export function App() {
           {view === 'repos' && <Repos data={data} actions={actions} focus={focus} />}
           {view === 'sessions' && <Sessions data={data} actions={actions} focus={focus} />}
           {view === 'prs' && <Prs data={data} actions={actions} />}
+          {view === 'ai' && <LocalAI actions={actions} />}
           {view === 'settings' && <SettingsView actions={actions} />}
         </main>
         {tabs.length > 0 && (
