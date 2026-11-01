@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell, session, type IpcMainInvoke
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { AiTask, RoutineAction, RoutineInput, RoutineRun, RoutineSchedule, Settings, TerminalSpec, VoiceModel } from '@shared/types';
+import type { AiTask, RoutineAction, RoutineInput, RoutineRun, RoutineSchedule, Settings, TerminalSpec } from '@shared/types';
 import { applyBackgroundMode, isQuitting, markQuitting, notify, showWindow, startedHidden } from './background';
 import { getSettings, saveSettings } from './config';
 import { buildBrief } from './brief';
@@ -17,7 +17,6 @@ import { deleteRoutine, listRoutines, listRuns, runRoutine, saveRoutine, startSc
 import { getTranscript, listSessions, searchSessions } from './sessions';
 import { scanSystem } from './system';
 import { runTask } from './tasks';
-import { applyHotkey, disposeVoice, handleAudio, initVoice, reportRecording } from './voiceControl';
 
 // Security baseline: every renderer is sandboxed, isolated, and has no Node access.
 app.enableSandbox();
@@ -196,31 +195,6 @@ function registerIpc() {
   handle('ai:brief', () => buildBrief());
   on('ai:cancel', (id: unknown) => ollama.cancelChat(str(id, 64)));
 
-  // Voice
-  const VOICE_MODELS: VoiceModel[] = ['base', 'small', 'turbo'];
-  handle('settings:setVoice', (v: { voiceModel?: unknown; voiceLanguage?: unknown; voiceHotkey?: unknown; voiceAutoStop?: unknown; voiceVocabulary?: unknown }) => {
-    const cur = getSettings();
-    const next: Settings = {
-      ...cur,
-      voiceModel: VOICE_MODELS.includes(v?.voiceModel as VoiceModel) ? (v.voiceModel as VoiceModel) : cur.voiceModel,
-      voiceLanguage: v?.voiceLanguage !== undefined ? str(v.voiceLanguage, 32) : cur.voiceLanguage,
-      voiceHotkey: v?.voiceHotkey === null ? null : v?.voiceHotkey !== undefined ? str(v.voiceHotkey, 64) : cur.voiceHotkey,
-      voiceAutoStop: typeof v?.voiceAutoStop === 'boolean' ? v.voiceAutoStop : cur.voiceAutoStop,
-      voiceVocabulary: Array.isArray(v?.voiceVocabulary)
-        ? [...new Set(v.voiceVocabulary.map((w) => str(w, 64).trim()).filter(Boolean))].slice(0, 200)
-        : cur.voiceVocabulary,
-    };
-    saveSettings(next);
-    const active = applyHotkey();
-    return { ...next, voiceHotkeyActive: active != null };
-  });
-  on('voice:recording', (recording: unknown, fromHotkey: unknown) => reportRecording(recording === true, fromHotkey === true));
-  handle('voice:transcribe', (audio: unknown) => {
-    // 16 kHz mono, at most 5 minutes
-    if (!(audio instanceof Float32Array) || audio.length > 16000 * 300) throw new Error('Invalid audio');
-    return handleAudio(audio);
-  });
-
   handle('term:create', (spec: TerminalSpec) => {
     const clean: TerminalSpec = {
       cwd: str(spec?.cwd ?? ''),
@@ -263,9 +237,7 @@ function createWindow() {
       win?.hide();
     }
   });
-  // The hidden voice pill is also a window, so quit explicitly when the main window closes.
   win.on('closed', () => app.quit());
-  initVoice(win, (pill) => loadPage(pill, 'pill'), WEB_PREFERENCES);
   applyBackgroundMode(win, getSettings().backgroundMode);
 }
 
@@ -287,16 +259,9 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => showWindow());
 
   app.whenReady().then(() => {
-    // Deny every browser permission except the microphone (audio only, our own page only) for voice input.
-    const ownPage = (url: string) => (DEV_URL ? url.startsWith(DEV_URL) : url.startsWith('file://'));
-    session.defaultSession.setPermissionRequestHandler((wc, permission, cb, details) => {
-      const media = details as Electron.MediaAccessPermissionRequest;
-      const audioOnly = permission === 'media' && (media.mediaTypes ?? []).every((t) => t === 'audio');
-      cb(audioOnly && ownPage(wc.getURL()));
-    });
-    session.defaultSession.setPermissionCheckHandler((wc, permission, origin, details) =>
-      permission === 'media' && (details as { mediaType?: string }).mediaType === 'audio' && ownPage(wc?.getURL() ?? origin)
-    );
+    // Deny every browser permission: camera, microphone, location, notifications, clipboard.
+    session.defaultSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
+    session.defaultSession.setPermissionCheckHandler(() => false);
     registerIpc();
     createWindow();
     startScheduler(runner, onRoutineChange);
@@ -307,7 +272,6 @@ if (!app.requestSingleInstanceLock()) {
     stopScheduler();
   });
 
-  app.on('will-quit', disposeVoice);
   app.on('window-all-closed', () => {
     killAll();
     app.quit();

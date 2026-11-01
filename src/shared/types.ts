@@ -67,27 +67,8 @@ export interface Settings {
   projectRoots: string[];
   /** default Ollama model for local tasks */
   localModel: string | null;
-  voiceModel: VoiceModel;
-  /** Whisper language name, e.g. 'english', 'hindi', or 'auto' */
-  voiceLanguage: string;
-  /** Electron accelerator for push-to-talk, or null to disable */
-  voiceHotkey: string | null;
-  /** stop recording automatically after a pause */
-  voiceAutoStop: boolean;
-  /** extra words to recognise (repo names are always included) */
-  voiceVocabulary: string[];
   /** keep running in the tray and start at login, so routines run with the window closed */
   backgroundMode: boolean;
-}
-
-
-export type VoiceModel = 'base' | 'small' | 'turbo';
-
-export type VoiceSettings = Pick<Settings, 'voiceModel' | 'voiceLanguage' | 'voiceHotkey' | 'voiceAutoStop' | 'voiceVocabulary'>;
-
-export interface VoiceState {
-  phase: 'idle' | 'listening' | 'working' | 'error';
-  message: string;
 }
 
 export interface TerminalSpec {
@@ -261,9 +242,4 @@ export interface CockpitApi {
   onRoutineRun(cb: (run: RoutineRun) => void): () => void;
   setBackgroundMode(on: boolean): Promise<Settings>;
   onNavigate(cb: (view: string) => void): () => void;
-  setVoiceSettings(v: Partial<VoiceSettings>): Promise<Settings & { voiceHotkeyActive: boolean }>;
-  voiceRecording(recording: boolean, fromHotkey: boolean): void;
-  voiceTranscribe(audio: Float32Array): Promise<{ text: string; pasted: boolean }>;
-  onVoiceCommand(cb: (cmd: 'start' | 'stop') => void): () => void;
-  onVoiceState(cb: (s: VoiceState) => void): () => void;
 }

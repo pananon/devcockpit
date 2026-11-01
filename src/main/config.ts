@@ -2,7 +2,7 @@ import { app } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Settings, VoiceModel } from '@shared/types';
+import type { Settings } from '@shared/types';
 
 const file = () => path.join(app.getPath('userData'), 'settings.json');
 
@@ -16,11 +16,6 @@ function defaultRoots(): string[] {
 }
 
 const DEFAULTS = {
-  voiceModel: 'small' as VoiceModel,
-  voiceLanguage: 'english',
-  voiceHotkey: 'CommandOrControl+Shift+Space' as string | null,
-  voiceAutoStop: true,
-  voiceVocabulary: [] as string[],
   backgroundMode: false,
 };
 
@@ -31,11 +26,6 @@ export function getSettings(): Settings {
       return {
         projectRoots: s.projectRoots.filter((r) => typeof r === 'string'),
         localModel: typeof s.localModel === 'string' ? s.localModel : null,
-        voiceModel: (['base', 'small', 'turbo'] as VoiceModel[]).includes(s.voiceModel as VoiceModel) ? (s.voiceModel as VoiceModel) : DEFAULTS.voiceModel,
-        voiceLanguage: typeof s.voiceLanguage === 'string' ? s.voiceLanguage : DEFAULTS.voiceLanguage,
-        voiceHotkey: s.voiceHotkey === null || typeof s.voiceHotkey === 'string' ? s.voiceHotkey : DEFAULTS.voiceHotkey,
-        voiceAutoStop: typeof s.voiceAutoStop === 'boolean' ? s.voiceAutoStop : DEFAULTS.voiceAutoStop,
-        voiceVocabulary: Array.isArray(s.voiceVocabulary) ? s.voiceVocabulary.filter((w) => typeof w === 'string') : DEFAULTS.voiceVocabulary,
         backgroundMode: s.backgroundMode === true,
       };
     }

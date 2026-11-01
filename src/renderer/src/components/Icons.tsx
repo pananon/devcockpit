@@ -76,12 +76,6 @@ export const Icon = {
       <path d="M7 9l3 3-3 3M12 15h5" />
     </svg>
   ),
-  mic: () => (
-    <svg {...base} strokeWidth={1.8}>
-      <rect x="9" y="3" width="6" height="11" rx="3" />
-      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-    </svg>
-  ),
   logo: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M3 18 L11 5 V18 Z M13 5 L21 18 H13 Z" fill="#f5a524" />

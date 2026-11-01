@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { VoiceState } from '@shared/types';
 import type { Actions, Data } from '../App';
 import { repoColor, samePath } from '../util';
 
-/** Editor-style status bar: the repo you're in, local AI, voice and PRs, always visible. */
-export function StatusBar({ data, actions, voicePhase, loading }: { data: Data; actions: Actions; voicePhase: VoiceState['phase']; loading: boolean }) {
+/** Editor-style status bar: the repo you're in, local AI and PRs, always visible. */
+export function StatusBar({ data, actions, loading }: { data: Data; actions: Actions; loading: boolean }) {
   const [model, setModel] = useState<{ running: boolean; name: string | null } | null>(null);
 
   useEffect(() => {
@@ -44,10 +43,6 @@ export function StatusBar({ data, actions, voicePhase, loading }: { data: Data; 
         <span className="led" style={{ background: model?.running ? 'var(--ok)' : '#4b5a68', marginRight: 6 }} />
         {model?.running ? model.name ?? 'no model' : 'local AI off'}
       </button>
-      <span>
-        <span className="led" style={{ background: voicePhase === 'listening' ? 'var(--accent)' : voicePhase === 'error' ? 'var(--danger)' : 'var(--ok)', marginRight: 6 }} />
-        {voicePhase === 'listening' ? 'listening' : voicePhase === 'working' ? 'transcribing' : 'voice'}
-      </span>
       <button onClick={() => actions.go('prs')}>
         {mine} PRs · <span style={{ color: reviews ? 'var(--warn)' : 'inherit' }}>{reviews} reviews</span>
       </button>

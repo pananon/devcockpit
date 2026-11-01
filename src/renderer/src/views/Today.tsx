@@ -284,8 +284,8 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
         <span className="mono" style={{ color: 'var(--accent)', fontSize: 18, paddingLeft: 6 }}>
           &gt;
         </span>
-        <input aria-label="Ask DevCockpit" placeholder="Ask DevCockpit or speak… “What’s pending on tatvafit?”" value={question} onChange={(e) => setQuestion(e.target.value)} />
-        <span className="mono small muted">hold the mic or Ctrl+Shift+Space</span>
+        <input aria-label="Ask DevCockpit" placeholder="Ask DevCockpit… “What’s pending on tatvafit?”" value={question} onChange={(e) => setQuestion(e.target.value)} />
+        <span className="mono small muted">local model · no Claude tokens</span>
         {ai.running ? (
           <button type="button" className="btn" onClick={ai.stop}>
             Stop
