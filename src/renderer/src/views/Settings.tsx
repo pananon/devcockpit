@@ -1,41 +1,12 @@
 import { useEffect, useState } from 'react';
-import type { VoiceModel, VoiceSettings } from '@shared/types';
 import type { Actions } from '../App';
 
-const VOICE_MODELS: { id: VoiceModel; label: string }[] = [
-  { id: 'base', label: 'Fast (Whisper base, ~80 MB)' },
-  { id: 'small', label: 'Balanced (Whisper small, ~250 MB)' },
-  { id: 'turbo', label: 'Most accurate (Whisper large-v3 turbo, ~600 MB)' },
-];
-const LANGUAGES = ['english', 'hindi', 'auto', 'spanish', 'french', 'german', 'portuguese', 'japanese', 'chinese'];
-const DEFAULT_HOTKEY = 'CommandOrControl+Shift+Space';
-
-const pickVoice = (s: VoiceSettings): VoiceSettings => ({
-  voiceModel: s.voiceModel,
-  voiceLanguage: s.voiceLanguage,
-  voiceHotkey: s.voiceHotkey,
-  voiceAutoStop: s.voiceAutoStop,
-  voiceVocabulary: s.voiceVocabulary,
-});
-
-export function SettingsView({ actions, onHotkey }: { actions: Actions; onHotkey: (h: string | null) => void }) {
+export function SettingsView({ actions }: { actions: Actions }) {
   const [roots, setRoots] = useState<string[] | null>(null);
-  const [voice, setVoice] = useState<VoiceSettings | null>(null);
-  const [hotkeyOk, setHotkeyOk] = useState(true);
 
   useEffect(() => {
-    window.cockpit.getSettings().then((s) => {
-      setRoots(s.projectRoots);
-      setVoice(pickVoice(s));
-    });
+    window.cockpit.getSettings().then((s) => setRoots(s.projectRoots));
   }, []);
-
-  const saveVoice = async (patch: Partial<VoiceSettings>) => {
-    const s = await window.cockpit.setVoiceSettings(patch);
-    setVoice(pickVoice(s));
-    setHotkeyOk(s.voiceHotkey == null || s.voiceHotkeyActive);
-    onHotkey(s.voiceHotkeyActive ? s.voiceHotkey : null);
-  };
 
   const save = async (next: string[]) => {
     const s = await window.cockpit.setProjectRoots(next);
@@ -72,66 +43,12 @@ export function SettingsView({ actions, onHotkey }: { actions: Actions; onHotkey
           Add folder…
         </button>
       </section>
-      {voice && (
-        <section className="card">
-          <h3>Voice</h3>
-          <label className="check big">
-            <input type="checkbox" checked={voice.voiceHotkey != null} onChange={(e) => saveVoice({ voiceHotkey: e.target.checked ? DEFAULT_HOTKEY : null })} />
-            Dictate into any app with a global shortcut
-          </label>
-          {voice.voiceHotkey != null && (
-            <div className="field">
-              <span className="muted small">Shortcut (press once to start, again to paste)</span>
-              <input
-                className="input mono"
-                defaultValue={voice.voiceHotkey}
-                onBlur={(e) => e.target.value.trim() && e.target.value !== voice.voiceHotkey && saveVoice({ voiceHotkey: e.target.value.trim() })}
-              />
-              {!hotkeyOk && <span className="warn-text small">That shortcut is taken by another app or isn't valid. Try another, e.g. Alt+Shift+D.</span>}
-            </div>
-          )}
-          <label className="check big">
-            <input type="checkbox" checked={voice.voiceAutoStop} onChange={(e) => saveVoice({ voiceAutoStop: e.target.checked })} />
-            Stop automatically when I pause (otherwise press the shortcut again)
-          </label>
-          <div className="field">
-            <span className="muted small">Extra words to recognise, comma-separated. Your repo names are already included.</span>
-            <input
-              className="input"
-              placeholder="e.g. Supabase, RevenueCat, Expo"
-              defaultValue={voice.voiceVocabulary.join(', ')}
-              onBlur={(e) => saveVoice({ voiceVocabulary: e.target.value.split(',').map((w) => w.trim()).filter(Boolean) })}
-            />
-          </div>
-          <div className="field">
-            <span className="muted small">Speech model (runs on your machine, downloaded on first use)</span>
-            <select className="input" value={voice.voiceModel} onChange={(e) => saveVoice({ voiceModel: e.target.value as VoiceModel })}>
-              {VOICE_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <span className="muted small">Language</span>
-            <select className="input" value={voice.voiceLanguage} onChange={(e) => saveVoice({ voiceLanguage: e.target.value })}>
-              {LANGUAGES.map((l) => (
-                <option key={l} value={l}>
-                  {l === 'auto' ? 'Detect automatically' : l[0].toUpperCase() + l.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <p className="muted small">Audio is transcribed locally and never saved or uploaded.</p>
-        </section>
-      )}
 
       <section className="card">
         <h3>Privacy</h3>
         <p className="muted">
           Everything stays on this computer. DevCockpit reads your Claude Code transcripts and git repos locally, talks to GitHub only through
-          your own <span className="mono">gh</span> login, stores no tokens, and sends no telemetry.
+          your own <span className="mono">gh</span> login, stores no credentials, and sends no telemetry.
         </p>
       </section>
     </div>

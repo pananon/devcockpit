@@ -8,7 +8,6 @@ import { StatusBar } from './components/StatusBar';
 import { TerminalDock, type TermTab } from './components/TerminalDock';
 import { TitleBar } from './components/TitleBar';
 import { onExit } from './termBus';
-import { insertIntoField, useVoice } from './useVoice';
 import { baseName, registerRepos, samePath } from './util';
 import { Today } from './views/Today';
 import { Workspace } from './views/Workspace';
@@ -65,27 +64,13 @@ export function App() {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [dockOpen, setDockOpen] = useState(false);
   const [dockHeight, setDockHeight] = useState(Math.round(window.innerHeight * 0.42));
-  const [hotkey, setHotkey] = useState<string | null>(null);
-  const [fallbackText, setFallbackText] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [focusRepo, setFocusRepo] = useState<string | null | undefined>(undefined); // undefined = closed
   const [pendingAsk, setPendingAsk] = useState<string | null>(null);
   const gPressed = useRef(0);
   const [, setPalette] = useState(0);
 
-  // Dictated text goes to the focused text field, else the active terminal (no Enter is sent).
-  const voice = useVoice((text, field) => {
-    if (insertIntoField(text, field ?? undefined)) return;
-    if (activeTab) {
-      setDockOpen(true);
-      window.cockpit.termWrite(activeTab, text);
-      return;
-    }
-    setFallbackText(text);
-  });
-
   useEffect(() => {
-    window.cockpit.getSettings().then((s) => setHotkey(s.voiceHotkey));
     // Notifications and the tray menu can open a specific view.
     return window.cockpit.onNavigate((v) => (NAV.some((n) => n.view === v) || v === 'settings') && setView(v as View));
   }, []);
@@ -204,8 +189,6 @@ export function App() {
   });
 
   const reviewCount = data.prs?.reviewRequested.length ?? 0;
-  const micLabel = voice.state.phase === 'listening' ? 'Stop and transcribe' : voice.state.phase === 'working' ? 'Transcribing…' : 'Dictate';
-  const micDown = useRef(0);
 
   return (
     <div className="shell">
@@ -237,25 +220,6 @@ export function App() {
           <button className="rail-btn" onClick={toggleTerminal} title="Terminal  (Ctrl+`)" aria-label="Terminal">
             <Icon.terminal />
           </button>
-          <button
-            className={`rail-mic ${voice.state.phase}`}
-            aria-label={micLabel}
-            title={`${micLabel}. Hold to talk, or click for hands-free.${hotkey ? ` ${hotkey.replace('CommandOrControl', 'Ctrl')} works in any app.` : ''}`}
-            disabled={voice.state.phase === 'working'}
-            onPointerDown={(e) => {
-              e.preventDefault(); // keep focus in the field being dictated into
-              micDown.current = e.timeStamp;
-              voice.press();
-            }}
-            onPointerUp={(e) => {
-              if (!micDown.current) return;
-              const held = e.timeStamp - micDown.current;
-              micDown.current = 0;
-              voice.release(held);
-            }}
-          >
-            <Icon.mic />
-          </button>
           <button className={`rail-btn ${view === 'settings' ? 'on' : ''}`} onClick={() => actions.go('settings')} title="Settings  (g ,)" aria-label="Settings">
             <Icon.settings />
           </button>
@@ -270,7 +234,7 @@ export function App() {
             {view === 'flow' && <Flow data={data} actions={actions} />}
             {view === 'routines' && <Routines data={data} />}
             {view === 'ai' && <LocalAI actions={actions} />}
-            {view === 'settings' && <SettingsView actions={actions} onHotkey={setHotkey} />}
+            {view === 'settings' && <SettingsView actions={actions} />}
           </main>
           {tabs.length > 0 && (
             <TerminalDock
@@ -288,24 +252,10 @@ export function App() {
         </div>
       </div>
 
-      <StatusBar data={data} actions={actions} voicePhase={voice.state.phase} loading={loading} />
+      <StatusBar data={data} actions={actions} loading={loading} />
 
       {focusRepo !== undefined && <FocusMode data={data} actions={actions} repoPath={focusRepo} onSwitch={(p) => setFocusRepo(p)} onClose={() => setFocusRepo(undefined)} />}
       {paletteOpen && <Palette data={data} actions={actions} onClose={() => setPaletteOpen(false)} />}
-
-      {(voice.notice || fallbackText) && (
-        <div className="toast" role="status">
-          {voice.notice ?? (
-            <>
-              <div className="muted small">No text box or terminal was active, so here is what you said:</div>
-              <div className="toast-text">{fallbackText}</div>
-            </>
-          )}
-          <button className="icon-btn" aria-label="Dismiss" onClick={() => setFallbackText(null)}>
-            ×
-          </button>
-        </div>
-      )}
     </div>
   );
 }

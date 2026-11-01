@@ -45,11 +45,6 @@ const api: CockpitApi = {
   onRoutineRun: (cb) => listen('routines:run', cb),
   setBackgroundMode: (on) => ipcRenderer.invoke('settings:setBackground', on),
   onNavigate: (cb) => listen('nav', cb),
-  setVoiceSettings: (v) => ipcRenderer.invoke('settings:setVoice', v),
-  voiceRecording: (recording, fromHotkey) => ipcRenderer.send('voice:recording', recording, fromHotkey),
-  voiceTranscribe: (audio) => ipcRenderer.invoke('voice:transcribe', audio),
-  onVoiceCommand: (cb) => listen('voice:command', cb),
-  onVoiceState: (cb) => listen('voice:state', cb),
 };
 
 contextBridge.exposeInMainWorld('cockpit', api);

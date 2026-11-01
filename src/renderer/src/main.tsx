@@ -14,9 +14,9 @@ import '@fontsource/jetbrains-mono/600.css';
 import './styles.css';
 import './hud.css';
 import { App } from './App';
-import { Pill } from './components/Pill';
 
-const isPill = location.hash === '#pill';
-if (isPill) document.documentElement.classList.add('pill-window');
-
-createRoot(document.getElementById('root')!).render(<StrictMode>{isPill ? <Pill /> : <App />}</StrictMode>);
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
