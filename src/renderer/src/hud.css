@@ -570,7 +570,8 @@ kbd,
 }
 
 /* ---------- Focus mode ---------- */
-.focus {
+/* Not ".focus": xterm adds that class to a focused terminal. */
+.focus-mode {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -694,7 +695,7 @@ kbd,
   padding-top: 10px;
 }
 .overlay,
-.focus {
+.focus-mode {
   top: var(--titlebar-h);
 }
 
