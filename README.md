@@ -1,5 +1,7 @@
 # DevCockpit
 
+[![CI](https://github.com/pananon/devcockpit/actions/workflows/ci.yml/badge.svg)](https://github.com/pananon/devcockpit/actions/workflows/ci.yml) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pananon/devcockpit/badge)](https://scorecard.dev/viewer/?uri=github.com/pananon/devcockpit) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **The cockpit for your dev day.** One desktop app that shows everything you're working on locally: every repo, every Claude Code session, every open pull request. Resume any session in the built-in terminal with one click.
 
 > Status: early development. Not released yet.
