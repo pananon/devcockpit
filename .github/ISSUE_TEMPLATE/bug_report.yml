@@ -1,0 +1,48 @@
+name: Bug report
+description: Something doesn't work the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Security problem?** Don't file it here; use "Report a vulnerability" under the Security tab instead.
+        Please don't paste real transcripts, paths or tokens. `npm run demo` (or the app with `--demo`) gives you safe, made-up data for screenshots.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Todos tab
+        2. Click Continue on a todo
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: DevCockpit version or commit
+      placeholder: 0.1.0, or the commit hash if you run from source
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: dropdown
+    id: ai
+    attributes:
+      label: Local AI
+      options: ['Off', 'On (Ollama)', "Don't know"]
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or logs
+      description: Demo-mode screenshots are best. Remove anything private from logs.
