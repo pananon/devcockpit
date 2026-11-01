@@ -332,3 +332,32 @@ export async function trashSessions(ids: string[], trash: (p: string) => Promise
 }
 
 export const sessionTitles = (ids: string[]) => ids.map((id) => findIndexed(id)?.summary.title).filter((t): t is string => !!t);
+
+/**
+ * Where to resume a session: the folder it was started in (the first working
+ * directory in its transcript), so a session started in a git worktree reopens in
+ * that worktree, not the main checkout. The path comes from a transcript file, so
+ * it's only trusted if it resolves to an existing directory inside one of the
+ * user's project folders. null = unknown, gone, or outside them.
+ */
+export function resumeCwd(id: string, roots: string[]): string | null {
+  const first = Object.keys(findIndexed(id)?.cwdCounts ?? {})[0];
+  if (!first) return null;
+  try {
+    // realpath.native returns the canonical on-disk path (true case, symlinks resolved),
+    // so the check below needs no lowercasing and stays exact on case-sensitive systems.
+    const real = fs.realpathSync.native(first);
+    if (!fs.statSync(real).isDirectory()) return null;
+    const allowed = roots.some((r) => {
+      try {
+        const rel = path.relative(fs.realpathSync.native(r), real);
+        return rel === '' || (!path.isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${path.sep}`));
+      } catch {
+        return false;
+      }
+    });
+    return allowed ? real : null;
+  } catch {
+    return null;
+  }
+}

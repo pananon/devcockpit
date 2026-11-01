@@ -16,7 +16,7 @@ import { createTerminal, killAll, killTerminal, resizeTerminal, writeTerminal } 
 import { findRepos, listRepos } from './repos';
 import { makeRunner } from './routineRunner';
 import { deleteRoutine, listRoutines, listRuns, runRoutine, saveRoutine, startScheduler, stopScheduler } from './routines';
-import { getTranscript, listSessions, searchSessions, sessionTitles, trashSessions } from './sessions';
+import { getTranscript, listSessions, resumeCwd, searchSessions, sessionTitles, trashSessions } from './sessions';
 import { scanSystem, systemUsage } from './system';
 import { runTask } from './tasks';
 import { addTodo, completeTodo } from './todos';
@@ -243,10 +243,12 @@ function registerIpc() {
   on('ai:cancel', (id: unknown) => ollama.cancelChat(str(id, 64)));
 
   handle('term:create', (spec: TerminalSpec) => {
+    const resumeId = spec?.resumeId ? str(spec.resumeId, 64) : undefined;
     const clean: TerminalSpec = {
-      cwd: str(spec?.cwd ?? ''),
+      // A resumed session reopens where it ran (e.g. its worktree), whatever folder the UI passed.
+      cwd: (resumeId && resumeCwd(resumeId, getSettings().projectRoots)) || str(spec?.cwd ?? ''),
       program: spec?.program === 'shell' || spec?.program === 'ollama-install' ? spec.program : 'claude',
-      resumeId: spec?.resumeId ? str(spec.resumeId, 64) : undefined,
+      resumeId,
       prompt: spec?.prompt ? str(spec.prompt, 2000) : undefined,
     };
     return createTerminal(
