@@ -926,27 +926,23 @@ button.chip.on {
   align-items: center;
   gap: 7px;
 }
-.statusbar .ai-toggle {
-  position: relative;
-  width: 26px;
-  height: 14px;
+.statusbar .ai-pill {
+  padding: 1px 8px;
   border: 1px solid #4b5a68;
-  background: #0b1624;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
 }
-.ai-toggle .knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 8px;
-  height: 8px;
-  background: #4b5a68;
-  transition: left 0.15s;
+.statusbar .ai-pill:hover {
+  border-color: var(--accent);
+  color: var(--bright);
 }
-.statusbar .ai-toggle.on {
-  border-color: var(--ok);
+.statusbar .ai-pill.on {
+  border-color: rgba(62, 224, 160, 0.6);
+  background: rgba(62, 224, 160, 0.1);
+  color: var(--ok);
 }
-.ai-toggle.on .knob {
-  left: 14px;
-  background: var(--ok);
-  box-shadow: 0 0 6px var(--ok);
+.statusbar .ai-pill:disabled {
+  opacity: 0.7;
+  cursor: progress;
 }

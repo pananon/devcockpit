@@ -85,18 +85,20 @@ export function StatusBar({ data, actions, loading }: { data: Data; actions: Act
       )}
       <span className="ai-switch">
         <button
-          className={`ai-toggle ${data.localAi ? 'on' : ''}`}
+          className={`ai-pill ${data.localAi ? 'on' : ''}`}
           onClick={toggleAi}
           disabled={switching}
           role="switch"
           aria-checked={data.localAi}
-          title={data.localAi ? 'Turn local AI off: unloads the model and frees GPU memory' : 'Turn local AI on'}
+          title={data.localAi ? 'Click to turn local AI off. Unloads the model and frees its GPU memory.' : 'Click to turn local AI on (Ollama).'}
         >
-          <span className="knob" />
+          {switching ? (data.localAi ? 'unloading…' : 'starting…') : data.localAi ? '● LOCAL AI ON' : '○ LOCAL AI OFF'}
         </button>
-        <button onClick={() => actions.go('ai')} title="Local AI settings">
-          {switching ? (data.localAi ? 'unloading…' : 'starting…') : !data.localAi ? 'local AI off' : model?.running ? (model.name ?? 'no model') : 'Ollama not running'}
-        </button>
+        {data.localAi && !switching && (
+          <button onClick={() => actions.go('ai')} title="Local AI settings">
+            {model?.running ? (model.name ?? 'no model') : 'Ollama not running'}
+          </button>
+        )}
       </span>
       <button onClick={() => actions.go('prs')}>
         {mine} PRs · <span style={{ color: reviews ? 'var(--warn)' : 'inherit' }}>{reviews} reviews</span>
