@@ -344,11 +344,14 @@ export function resumeCwd(id: string, roots: string[]): string | null {
   const first = Object.keys(findIndexed(id)?.cwdCounts ?? {})[0];
   if (!first) return null;
   try {
-    const real = fs.realpathSync(first);
+    // realpath.native returns the canonical on-disk path (true case, symlinks resolved),
+    // so the check below needs no lowercasing and stays exact on case-sensitive systems.
+    const real = fs.realpathSync.native(first);
     if (!fs.statSync(real).isDirectory()) return null;
     const allowed = roots.some((r) => {
       try {
-        return inside(norm(real), norm(fs.realpathSync(r)));
+        const rel = path.relative(fs.realpathSync.native(r), real);
+        return rel === '' || (!path.isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${path.sep}`));
       } catch {
         return false;
       }
