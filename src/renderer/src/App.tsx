@@ -141,7 +141,18 @@ export function App() {
     });
   };
 
-  const toggleTerminal = () => (tabs.length ? setDockOpen((o) => !o) : actions.openClaude(data.repos?.[0]?.path ?? ''));
+  /**
+   * Where new terminals open: the repo selected in Workspace, else the repo of your
+   * latest Claude session, else the most recently committed repo.
+   */
+  const currentRepoPath = (): string => {
+    if (view === 'workspace' && focus && data.repos?.some((r) => samePath(r.path, focus))) return focus;
+    const fromSession = data.sessions?.find((s) => s.repoPath && data.repos?.some((r) => samePath(r.path, s.repoPath)))?.repoPath;
+    if (fromSession) return fromSession;
+    return [...(data.repos ?? [])].sort((a, b) => (b.lastCommit?.date ?? '').localeCompare(a.lastCommit?.date ?? ''))[0]?.path ?? '';
+  };
+
+  const toggleTerminal = () => (tabs.length ? setDockOpen((o) => !o) : actions.openClaude(currentRepoPath()));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -245,7 +256,7 @@ export function App() {
               onHeight={setDockHeight}
               onSelect={setActiveTab}
               onClose={closeTab}
-              onNew={() => actions.openClaude(data.repos?.[0]?.path ?? '')}
+              onNew={() => actions.openClaude(currentRepoPath())}
               onHide={() => setDockOpen(false)}
             />
           )}
