@@ -11,8 +11,9 @@ import { Sessions } from './views/Sessions';
 import { Prs } from './views/Prs';
 import { SettingsView } from './views/Settings';
 import { LocalAI } from './views/LocalAI';
+import { Routines } from './views/Routines';
 
-export type View = 'today' | 'repos' | 'sessions' | 'prs' | 'ai' | 'settings';
+export type View = 'today' | 'repos' | 'sessions' | 'prs' | 'routines' | 'ai' | 'settings';
 
 export interface Data {
   repos: Repo[] | null;
@@ -34,8 +35,9 @@ const NAV: { view: View; label: string; key: string }[] = [
   { view: 'repos', label: 'Repos', key: '2' },
   { view: 'sessions', label: 'Sessions', key: '3' },
   { view: 'prs', label: 'Pull requests', key: '4' },
-  { view: 'ai', label: 'Local AI', key: '5' },
-  { view: 'settings', label: 'Settings', key: '6' },
+  { view: 'routines', label: 'Routines', key: '5' },
+  { view: 'ai', label: 'Local AI', key: '6' },
+  { view: 'settings', label: 'Settings', key: '7' },
 ];
 
 export function App() {
@@ -63,6 +65,8 @@ export function App() {
 
   useEffect(() => {
     window.cockpit.getSettings().then((s) => setHotkey(s.voiceHotkey));
+    // Notifications and the tray menu can open a specific view.
+    return window.cockpit.onNavigate((v) => NAV.some((n) => n.view === v) && setView(v as View));
   }, []);
 
   const refresh = useCallback(async () => {
@@ -164,6 +168,7 @@ export function App() {
           {view === 'repos' && <Repos data={data} actions={actions} focus={focus} />}
           {view === 'sessions' && <Sessions data={data} actions={actions} focus={focus} />}
           {view === 'prs' && <Prs data={data} actions={actions} />}
+          {view === 'routines' && <Routines data={data} />}
           {view === 'ai' && <LocalAI actions={actions} />}
           {view === 'settings' && <SettingsView actions={actions} onHotkey={setHotkey} />}
         </main>

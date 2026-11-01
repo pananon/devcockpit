@@ -2,7 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell, session, type IpcMainInvoke
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { AiTask, Settings, TerminalSpec, VoiceModel } from '@shared/types';
+import type { AiTask, RoutineAction, RoutineInput, RoutineRun, RoutineSchedule, Settings, TerminalSpec, VoiceModel } from '@shared/types';
+import { applyBackgroundMode, isQuitting, markQuitting, notify, showWindow, startedHidden } from './background';
 import { getSettings, saveSettings } from './config';
 import { buildBrief } from './brief';
 import { buildReport, isValidTag } from './models';
@@ -11,6 +12,8 @@ import { startOllama } from './ollamaInstall';
 import { listPrs } from './prs';
 import { createTerminal, killAll, killTerminal, resizeTerminal, writeTerminal } from './pty';
 import { findRepos, listRepos } from './repos';
+import { makeRunner } from './routineRunner';
+import { deleteRoutine, listRoutines, listRuns, runRoutine, saveRoutine, startScheduler, stopScheduler } from './routines';
 import { getTranscript, listSessions, searchSessions } from './sessions';
 import { scanSystem } from './system';
 import { runTask } from './tasks';
@@ -76,7 +79,55 @@ function friendlyPullError(msg: string): string {
   return msg.length > 300 ? `${msg.slice(0, 300)}…` : msg;
 }
 
+/** Routines run the same way whether scheduled or started by hand. */
+const runner = makeRunner(async () => {
+  throw new Error('Email is not connected yet. Set it up in the Email tab.');
+});
+
+function onRoutineChange(run: RoutineRun) {
+  win?.webContents.send('routines:run', run);
+  if (run.status === 'running') return;
+  const routine = listRoutines().find((r) => r.id === run.routineId);
+  if (routine?.notify) notify(`${run.routineName} ${run.status === 'ok' ? 'finished' : 'failed'}`, run.output.replace(/[#*_`>]/g, '').trim() || '(no output)', 'routines');
+}
+
+function cleanRoutine(r: RoutineInput): RoutineInput {
+  const s = r?.schedule as RoutineSchedule;
+  const schedule: RoutineSchedule =
+    s?.kind === 'interval'
+      ? { kind: 'interval', hours: Math.min(168, Math.max(0.25, Number(s.hours) || 1)) }
+      : {
+          kind: 'daily',
+          time: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(s?.time)) ? String(s.time) : '09:00',
+          days: Array.isArray(s?.days) ? [...new Set(s.days.map(Number).filter((d) => d >= 0 && d <= 6))] : [1, 2, 3, 4, 5],
+        };
+  const a = r?.action as RoutineAction;
+  const action: RoutineAction =
+    a?.type === 'ask'
+      ? { type: 'ask', prompt: str(a.prompt, 4000) }
+      : a?.type === 'claude'
+        ? { type: 'claude', prompt: str(a.prompt, 8000), cwd: str(a.cwd) }
+        : a?.type === 'email'
+          ? { type: 'email' }
+          : { type: 'brief' };
+  return { id: r?.id ? str(r.id, 64) : undefined, name: str(r?.name || 'Routine', 80), enabled: r?.enabled !== false, notify: r?.notify !== false, schedule, action };
+}
+
 function registerIpc() {
+  handle('routines:list', () => listRoutines());
+  handle('routines:save', (r: RoutineInput) => saveRoutine(cleanRoutine(r)));
+  handle('routines:delete', (id: unknown) => deleteRoutine(str(id, 64)));
+  handle('routines:runNow', (id: unknown) => {
+    const routine = listRoutines().find((r) => r.id === str(id, 64));
+    if (routine) void runRoutine(routine, runner, onRoutineChange);
+  });
+  handle('routines:runs', () => listRuns());
+  handle('settings:setBackground', (on: unknown) => {
+    const next = saveSettings({ ...getSettings(), backgroundMode: on === true });
+    if (win) applyBackgroundMode(win, next.backgroundMode);
+    return next;
+  });
+
   handle('settings:get', () => getSettings());
   handle('settings:setRoots', (roots: unknown): Settings => {
     if (!Array.isArray(roots)) throw new Error('Invalid argument');
@@ -198,11 +249,19 @@ function createWindow() {
     show: false,
     webPreferences: WEB_PREFERENCES,
   });
-  win.once('ready-to-show', () => win?.show());
+  // Started at login in background mode: stay in the tray until opened.
+  win.once('ready-to-show', () => !(startedHidden() && getSettings().backgroundMode) && win?.show());
   loadPage(win);
+  win.on('close', (e) => {
+    if (getSettings().backgroundMode && !isQuitting()) {
+      e.preventDefault();
+      win?.hide();
+    }
+  });
   // The hidden voice pill is also a window, so quit explicitly when the main window closes.
   win.on('closed', () => app.quit());
   initVoice(win, (pill) => loadPage(pill, 'pill'), WEB_PREFERENCES);
+  applyBackgroundMode(win, getSettings().backgroundMode);
 }
 
 // No in-app navigation, no new windows, no <webview>. External links go to the system browser.
@@ -220,10 +279,7 @@ app.on('web-contents-created', (_e, contents) => {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (win?.isMinimized()) win.restore();
-    win?.focus();
-  });
+  app.on('second-instance', () => showWindow());
 
   app.whenReady().then(() => {
     // Deny every browser permission except the microphone (audio only, our own page only) for voice input.
@@ -238,6 +294,12 @@ if (!app.requestSingleInstanceLock()) {
     );
     registerIpc();
     createWindow();
+    startScheduler(runner, onRoutineChange);
+  });
+
+  app.on('before-quit', () => {
+    markQuitting();
+    stopScheduler();
   });
 
   app.on('will-quit', disposeVoice);

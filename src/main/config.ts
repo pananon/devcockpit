@@ -21,6 +21,7 @@ const DEFAULTS = {
   voiceHotkey: 'CommandOrControl+Shift+Space' as string | null,
   voiceAutoStop: true,
   voiceVocabulary: [] as string[],
+  backgroundMode: false,
 };
 
 export function getSettings(): Settings {
@@ -35,6 +36,7 @@ export function getSettings(): Settings {
         voiceHotkey: s.voiceHotkey === null || typeof s.voiceHotkey === 'string' ? s.voiceHotkey : DEFAULTS.voiceHotkey,
         voiceAutoStop: typeof s.voiceAutoStop === 'boolean' ? s.voiceAutoStop : DEFAULTS.voiceAutoStop,
         voiceVocabulary: Array.isArray(s.voiceVocabulary) ? s.voiceVocabulary.filter((w) => typeof w === 'string') : DEFAULTS.voiceVocabulary,
+        backgroundMode: s.backgroundMode === true,
       };
     }
   } catch {

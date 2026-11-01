@@ -76,6 +76,8 @@ export interface Settings {
   voiceAutoStop: boolean;
   /** extra words to recognise (repo names are always included) */
   voiceVocabulary: string[];
+  /** keep running in the tray and start at login, so routines run with the window closed */
+  backgroundMode: boolean;
 }
 
 export type VoiceModel = 'base' | 'small' | 'turbo';
@@ -191,6 +193,37 @@ export interface AiEvent {
   error?: string;
 }
 
+export type RoutineSchedule = { kind: 'daily'; time: string; days: number[] } | { kind: 'interval'; hours: number };
+
+export type RoutineAction =
+  | { type: 'brief' }
+  | { type: 'ask'; prompt: string }
+  | { type: 'claude'; prompt: string; cwd: string }
+  | { type: 'email' };
+
+export interface Routine {
+  id: string;
+  name: string;
+  enabled: boolean;
+  notify: boolean;
+  schedule: RoutineSchedule;
+  action: RoutineAction;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+}
+
+export type RoutineInput = Omit<Routine, 'id' | 'lastRunAt' | 'nextRunAt'> & { id?: string };
+
+export interface RoutineRun {
+  id: string;
+  routineId: string;
+  routineName: string;
+  startedAt: string;
+  finishedAt: string | null;
+  status: 'running' | 'ok' | 'error';
+  output: string;
+}
+
 export interface CockpitApi {
   getSettings(): Promise<Settings>;
   setProjectRoots(roots: string[]): Promise<Settings>;
@@ -220,6 +253,14 @@ export interface CockpitApi {
   cancelAi(taskId: string): void;
   onAiEvent(cb: (e: AiEvent) => void): () => void;
   buildBrief(): Promise<Brief>;
+  listRoutines(): Promise<Routine[]>;
+  saveRoutine(r: RoutineInput): Promise<Routine>;
+  deleteRoutine(id: string): Promise<void>;
+  runRoutineNow(id: string): Promise<void>;
+  listRoutineRuns(): Promise<RoutineRun[]>;
+  onRoutineRun(cb: (run: RoutineRun) => void): () => void;
+  setBackgroundMode(on: boolean): Promise<Settings>;
+  onNavigate(cb: (view: string) => void): () => void;
   setVoiceSettings(v: Partial<VoiceSettings>): Promise<Settings & { voiceHotkeyActive: boolean }>;
   voiceRecording(recording: boolean, fromHotkey: boolean): void;
   voiceTranscribe(audio: Float32Array): Promise<{ text: string; pasted: boolean }>;
