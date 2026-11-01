@@ -4,7 +4,7 @@
 
 **The cockpit for your dev day.** One desktop app that shows everything you're working on locally: every repo, every Claude Code session, every open pull request. Resume any session in the built-in terminal with one click.
 
-> Status: early development. Not released yet.
+> Status: early (v0.1). Feedback welcome: open an issue.
 
 ![DevCockpit's Today screen: priorities, session timeline, repos and pull requests](docs/screenshots/today.png)
 
@@ -36,6 +36,27 @@
 - **Built-in terminal**: real Claude Code and shell tabs inside the app (`Ctrl+\``).
 - **Routines**: scheduled jobs (daily brief, questions to the local model, read-only Claude Code tasks), with notifications and an optional tray mode so they run with the window closed.
 - **Local AI**: one click checks your CPU, RAM and GPU and recommends the best model your machine can run through [Ollama](https://ollama.com). Use it for briefs, session summaries and questions about your work, without spending Claude tokens. It's optional: switch it off from the status bar or Settings and DevCockpit unloads the model (freeing GPU memory) and stops contacting Ollama. The brief then uses simple rules, and Ask and summaries are hidden.
+
+## Install
+
+Download the latest installer from [Releases](https://github.com/pananon/devcockpit/releases):
+
+- **Windows:** `DevCockpit-…-windows-x64-setup.exe`. It isn't code-signed yet, so SmartScreen will warn once: click **More info → Run anyway**.
+- **macOS:** `…-mac-arm64.dmg` (Apple Silicon) or `…-mac-x64.dmg` (Intel). It's unsigned, so the first time, right-click the app and choose **Open**.
+- **Linux:** the `.AppImage`. Run `chmod +x` on it, then start it.
+
+Every installer is built by this repo's GitHub Actions and carries a signed build attestation. To check that a download came from here, run `gh attestation verify <file> --repo pananon/devcockpit`.
+
+You'll want [Claude Code](https://claude.com/claude-code) installed, and optionally the [GitHub CLI](https://cli.github.com) (logged in) for pull requests and [Ollama](https://ollama.com) for local AI.
+
+## Known limitations
+
+- **Unsigned installers.** There's no Windows or Apple code-signing certificate yet, so the OS warns on first launch. The build attestations above prove where the files came from.
+- **Windows is the most tested platform.** The macOS and Linux builds are produced by CI but have had little real-world testing. Please report anything odd.
+- **No auto-update.** Download new versions from Releases.
+- **Claude Code's session format is undocumented.** DevCockpit reads it carefully and skips anything it doesn't understand, but a Claude Code update could change what it can show.
+- **GPU usage in the status bar needs an NVIDIA card** (`nvidia-smi`). CPU and RAM work everywhere.
+- **Repos are found up to two folders deep** inside your project folders.
 
 ## Roadmap
 
