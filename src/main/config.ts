@@ -2,7 +2,7 @@ import { app } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { EmailAccount, EmailProfile, Settings, VoiceModel } from '@shared/types';
+import type { Settings, VoiceModel } from '@shared/types';
 
 const file = () => path.join(app.getPath('userData'), 'settings.json');
 
@@ -22,9 +22,6 @@ const DEFAULTS = {
   voiceAutoStop: true,
   voiceVocabulary: [] as string[],
   backgroundMode: false,
-  email: null as EmailAccount | null,
-  emailProfile: { name: '', signature: '', about: '' } as EmailProfile,
-  emailAutoDraft: true,
 };
 
 export function getSettings(): Settings {
@@ -40,9 +37,6 @@ export function getSettings(): Settings {
         voiceAutoStop: typeof s.voiceAutoStop === 'boolean' ? s.voiceAutoStop : DEFAULTS.voiceAutoStop,
         voiceVocabulary: Array.isArray(s.voiceVocabulary) ? s.voiceVocabulary.filter((w) => typeof w === 'string') : DEFAULTS.voiceVocabulary,
         backgroundMode: s.backgroundMode === true,
-        email: s.email && typeof s.email.host === 'string' && typeof s.email.user === 'string' ? s.email : null,
-        emailProfile: { ...DEFAULTS.emailProfile, ...(s.emailProfile ?? {}) },
-        emailAutoDraft: s.emailAutoDraft !== false,
       };
     }
   } catch {

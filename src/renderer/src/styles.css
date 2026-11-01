@@ -955,31 +955,3 @@ textarea.input {
   overflow: auto;
 }
 
-/* Email */
-.mail .list-row .title strong {
-  font-weight: 600;
-}
-.mail-body {
-  margin: 0 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.mail-text {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font: 13px/1.5 inherit;
-  font-family: inherit;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 12px;
-  max-height: 260px;
-  overflow: auto;
-  margin: 0;
-}
-.draft {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}

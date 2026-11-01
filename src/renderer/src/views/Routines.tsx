@@ -11,7 +11,6 @@ const ACTION_LABEL: Record<RoutineAction['type'], string> = {
   brief: 'Daily brief',
   ask: 'Ask the local model',
   claude: 'Claude Code task (uses Claude tokens)',
-  email: 'Email triage and drafts',
 };
 
 const TEMPLATES: { label: string; routine: RoutineInput }[] = [
@@ -28,10 +27,6 @@ const TEMPLATES: { label: string; routine: RoutineInput }[] = [
       schedule: { kind: 'daily', time: '18:30', days: WEEKDAYS },
       action: { type: 'ask', prompt: 'What did I work on today, what is still uncommitted or unpushed, and what should I pick up first tomorrow?' },
     },
-  },
-  {
-    label: 'Email triage every 2 hours',
-    routine: { name: 'Email triage', enabled: true, notify: true, schedule: { kind: 'interval', hours: 2 }, action: { type: 'email' } },
   },
 ];
 
@@ -84,7 +79,7 @@ export function Routines({ data }: { data: Data }) {
       <header className="page-head">
         <div>
           <h1>Routines</h1>
-          <p className="muted">Jobs that run on a schedule: your brief, questions to the local model, Claude Code tasks, email triage.</p>
+          <p className="muted">Jobs that run on a schedule: your brief, questions to the local model, Claude Code tasks.</p>
         </div>
         <button className="btn primary" onClick={() => setEditing({ name: '', enabled: true, notify: true, schedule: { kind: 'daily', time: '09:00', days: WEEKDAYS }, action: { type: 'brief' } })}>
           New routine

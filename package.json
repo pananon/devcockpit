@@ -14,7 +14,6 @@
     "dist": "electron-vite build && electron-builder"
   },
   "devDependencies": {
-    "@types/mailparser": "3.9.0",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -29,8 +28,6 @@
     "@huggingface/transformers": "4.3.1",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
-    "imapflow": "2.5.2",
-    "mailparser": "3.9.43",
     "node-pty": "1.1.0",
     "react": "19.3.1",
     "react-dom": "19.3.1"

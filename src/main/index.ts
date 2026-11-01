@@ -2,12 +2,10 @@ import { app, BrowserWindow, dialog, ipcMain, shell, session, type IpcMainInvoke
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { AiTask, EmailConnectInput, EmailProfile, RoutineAction, RoutineInput, RoutineRun, RoutineSchedule, Settings, TerminalSpec, VoiceModel } from '@shared/types';
+import type { AiTask, RoutineAction, RoutineInput, RoutineRun, RoutineSchedule, Settings, TerminalSpec, VoiceModel } from '@shared/types';
 import { applyBackgroundMode, isQuitting, markQuitting, notify, showWindow, startedHidden } from './background';
 import { getSettings, saveSettings } from './config';
 import { buildBrief } from './brief';
-import { forgetPassword, hasPassword, PROVIDERS, savePassword, testConnection } from './email';
-import { draftReply, emailRoutine, lastTriage, runTriage, saveDraftToMailbox } from './emailAi';
 import { buildReport, isValidTag } from './models';
 import * as ollama from './ollama';
 import { startOllama } from './ollamaInstall';
@@ -82,7 +80,7 @@ function friendlyPullError(msg: string): string {
 }
 
 /** Routines run the same way whether scheduled or started by hand. */
-const runner = makeRunner(emailRoutine);
+const runner = makeRunner();
 
 function onRoutineChange(run: RoutineRun) {
   win?.webContents.send('routines:run', run);
@@ -107,51 +105,11 @@ function cleanRoutine(r: RoutineInput): RoutineInput {
       ? { type: 'ask', prompt: str(a.prompt, 4000) }
       : a?.type === 'claude'
         ? { type: 'claude', prompt: str(a.prompt, 8000), cwd: str(a.cwd) }
-        : a?.type === 'email'
-          ? { type: 'email' }
-          : { type: 'brief' };
+        : { type: 'brief' };
   return { id: r?.id ? str(r.id, 64) : undefined, name: str(r?.name || 'Routine', 80), enabled: r?.enabled !== false, notify: r?.notify !== false, schedule, action };
 }
 
 function registerIpc() {
-  // Email (IMAP, drafts only)
-  handle('email:status', () => {
-    const s = getSettings();
-    return { account: s.email, connected: !!s.email && hasPassword(), profile: s.emailProfile, autoDraft: s.emailAutoDraft };
-  });
-  handle('email:connect', async (input: EmailConnectInput) => {
-    const preset = PROVIDERS[str(input?.provider, 32)];
-    const host = preset?.host ?? str(input?.host ?? '', 255);
-    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host)) throw new Error('Enter a valid IMAP server name.');
-    const account = {
-      provider: input.provider,
-      host,
-      port: preset?.port ?? Math.min(65535, Math.max(1, Number(input.port) || 993)),
-      user: str(input.user, 254).trim(),
-      displayName: str(input.displayName ?? '', 120).trim(),
-    };
-    const password = str(input.password, 256).replace(/\s+/g, ''); // Google shows app passwords with spaces
-    const message = await testConnection(account, password); // only saved if the login works
-    savePassword(password);
-    saveSettings({ ...getSettings(), email: account });
-    return message;
-  });
-  handle('email:disconnect', () => {
-    forgetPassword();
-    saveSettings({ ...getSettings(), email: null });
-  });
-  handle('email:setProfile', (p: EmailProfile, autoDraft: unknown) => {
-    saveSettings({
-      ...getSettings(),
-      emailProfile: { name: str(p?.name ?? '', 120), signature: str(p?.signature ?? '', 1000), about: str(p?.about ?? '', 3000) },
-      emailAutoDraft: autoDraft !== false,
-    });
-  });
-  handle('email:triage', () => runTriage());
-  handle('email:last', () => lastTriage());
-  handle('email:draft', (uid: unknown) => draftReply(Number(uid)));
-  handle('email:saveDraft', (uid: unknown, body: unknown) => saveDraftToMailbox(Number(uid), str(body, 20000)));
-
   handle('routines:list', () => listRoutines());
   handle('routines:save', (r: RoutineInput) => saveRoutine(cleanRoutine(r)));
   handle('routines:delete', (id: unknown) => deleteRoutine(str(id, 64)));

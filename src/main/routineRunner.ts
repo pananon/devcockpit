@@ -63,7 +63,7 @@ function runClaude(prompt: string, cwd: string, onProgress: (t: string) => void)
   });
 }
 
-export function makeRunner(emailTriage: (onProgress: (t: string) => void) => Promise<string>): Runner {
+export function makeRunner(): Runner {
   return async (routine: Routine, onProgress) => {
     const a = routine.action;
     switch (a.type) {
@@ -73,8 +73,6 @@ export function makeRunner(emailTriage: (onProgress: (t: string) => void) => Pro
         return askLocal(a.prompt, onProgress);
       case 'claude':
         return runClaude(a.prompt, a.cwd, onProgress);
-      case 'email':
-        return emailTriage(onProgress);
     }
   };
 }
