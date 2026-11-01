@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { childEnv } from './exec';
 
 /**
  * The install command for this OS, as a shell script for the terminal tab.
@@ -64,7 +65,7 @@ export const isInstalledOnDisk = () => knownBinary() != null;
 export function startOllama(): boolean {
   const bin = knownBinary();
   if (bin) {
-    spawn(bin, ['serve'], { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' } }).unref();
+    spawn(bin, ['serve'], { detached: true, stdio: 'ignore', windowsHide: true, env: childEnv({ OLLAMA_HOST: '127.0.0.1:11434' }) }).unref();
     return true;
   }
   if (process.platform === 'darwin' && fs.existsSync('/Applications/Ollama.app')) {
