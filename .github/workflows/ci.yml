@@ -1,3 +1,4 @@
+# Runs on: pull requests and pushes to main.
 # Typecheck and build on every PR and on main, on all three desktop platforms,
 # plus an audit of the packages that ship inside the app.
 name: CI
