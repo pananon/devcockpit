@@ -12,8 +12,9 @@ import { Prs } from './views/Prs';
 import { SettingsView } from './views/Settings';
 import { LocalAI } from './views/LocalAI';
 import { Routines } from './views/Routines';
+import { Email } from './views/Email';
 
-export type View = 'today' | 'repos' | 'sessions' | 'prs' | 'routines' | 'ai' | 'settings';
+export type View = 'today' | 'repos' | 'sessions' | 'prs' | 'email' | 'routines' | 'ai' | 'settings';
 
 export interface Data {
   repos: Repo[] | null;
@@ -35,9 +36,10 @@ const NAV: { view: View; label: string; key: string }[] = [
   { view: 'repos', label: 'Repos', key: '2' },
   { view: 'sessions', label: 'Sessions', key: '3' },
   { view: 'prs', label: 'Pull requests', key: '4' },
-  { view: 'routines', label: 'Routines', key: '5' },
-  { view: 'ai', label: 'Local AI', key: '6' },
-  { view: 'settings', label: 'Settings', key: '7' },
+  { view: 'email', label: 'Email', key: '5' },
+  { view: 'routines', label: 'Routines', key: '6' },
+  { view: 'ai', label: 'Local AI', key: '7' },
+  { view: 'settings', label: 'Settings', key: '8' },
 ];
 
 export function App() {
@@ -168,6 +170,7 @@ export function App() {
           {view === 'repos' && <Repos data={data} actions={actions} focus={focus} />}
           {view === 'sessions' && <Sessions data={data} actions={actions} focus={focus} />}
           {view === 'prs' && <Prs data={data} actions={actions} />}
+          {view === 'email' && <Email actions={actions} />}
           {view === 'routines' && <Routines data={data} />}
           {view === 'ai' && <LocalAI actions={actions} />}
           {view === 'settings' && <SettingsView actions={actions} onHotkey={setHotkey} />}

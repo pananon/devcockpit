@@ -78,6 +78,69 @@ export interface Settings {
   voiceVocabulary: string[];
   /** keep running in the tray and start at login, so routines run with the window closed */
   backgroundMode: boolean;
+  /** connected mailbox (the password is stored separately, encrypted) */
+  email: EmailAccount | null;
+  emailProfile: EmailProfile;
+  /** the email routine saves drafts to the mailbox automatically */
+  emailAutoDraft: boolean;
+}
+
+export interface EmailAccount {
+  provider: string;
+  host: string;
+  port: number;
+  user: string;
+  displayName: string;
+}
+
+export interface EmailProfile {
+  name: string;
+  signature: string;
+  /** who you are and what you are looking for; guides drafts */
+  about: string;
+}
+
+export interface MailMessage {
+  uid: number;
+  messageId: string;
+  references: string[];
+  fromName: string;
+  fromAddress: string;
+  replyTo: string | null;
+  subject: string;
+  date: string;
+  text: string;
+  /** you already replied */
+  answered: boolean;
+  /** newsletter or automated sender */
+  bulk: boolean;
+  /** a draft reply already exists in the mailbox */
+  draftExists: boolean;
+}
+
+export type MailCategory = 'job' | 'reply' | 'fyi' | 'spam';
+
+export interface TriageItem extends MailMessage {
+  category: MailCategory;
+  reason: string;
+  draft: string | null;
+  draftSaved: boolean;
+}
+
+export interface TriageResult {
+  checkedAt: string;
+  items: TriageItem[];
+  /** local model used for sorting, or null when rules were used */
+  usedModel: string | null;
+}
+
+export interface EmailConnectInput {
+  provider: string;
+  user: string;
+  password: string;
+  displayName: string;
+  host?: string;
+  port?: number;
 }
 
 export type VoiceModel = 'base' | 'small' | 'turbo';
@@ -261,6 +324,14 @@ export interface CockpitApi {
   onRoutineRun(cb: (run: RoutineRun) => void): () => void;
   setBackgroundMode(on: boolean): Promise<Settings>;
   onNavigate(cb: (view: string) => void): () => void;
+  emailStatus(): Promise<{ account: EmailAccount | null; connected: boolean; profile: EmailProfile; autoDraft: boolean }>;
+  emailConnect(input: EmailConnectInput): Promise<string>;
+  emailDisconnect(): Promise<void>;
+  emailSetProfile(p: EmailProfile, autoDraft: boolean): Promise<void>;
+  emailTriage(): Promise<TriageResult>;
+  emailLastTriage(): Promise<TriageResult | null>;
+  emailDraft(uid: number): Promise<string>;
+  emailSaveDraft(uid: number, body: string): Promise<void>;
   setVoiceSettings(v: Partial<VoiceSettings>): Promise<Settings & { voiceHotkeyActive: boolean }>;
   voiceRecording(recording: boolean, fromHotkey: boolean): void;
   voiceTranscribe(audio: Float32Array): Promise<{ text: string; pasted: boolean }>;

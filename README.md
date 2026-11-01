@@ -2,7 +2,7 @@
 
 **The cockpit for your dev day.** One desktop app that shows everything you're working on locally: every repo, every Claude Code session, every open pull request. Resume any session in the built-in terminal with one click.
 
-> Status: early development (Phase 3 next). Not released yet.
+> Status: early development (Phase 4 next: installers and launch). Not released yet.
 
 ## What it does
 
@@ -12,12 +12,14 @@
 - **Pull requests**: yours, the ones waiting for your review, and recently merged ones, across every repo. Uses your existing `gh` login.
 - **Built-in terminal**: real Claude Code and shell tabs inside the app (`Ctrl+\``).
 - **Voice**: press `Ctrl+Shift+Space` in any app and speak. It stops when you pause and pastes the text where your cursor is. Your repo names are recognised even when Whisper mishears them. Inside DevCockpit it goes into the focused box or the active terminal. Whisper runs locally, on your GPU when one is available.
+- **Email**: connect Gmail, Yahoo, iCloud, Fastmail or any IMAP mailbox with an app password. The local model sorts the last week of mail into job invites, needs-reply, FYI and spam, skips threads you've already answered or drafted, and writes replies in your voice. Drafts go to your Drafts folder: DevCockpit can't send email.
+- **Routines**: scheduled jobs (daily brief, questions to the local model, read-only Claude Code tasks, email triage with automatic drafts), with notifications and an optional tray mode so they run with the window closed.
 - **Local AI**: one click checks your CPU, RAM and GPU and recommends the best model your machine can run through [Ollama](https://ollama.com). Use it for a morning brief, session summaries and quick questions, without spending Claude tokens.
 
 ## Roadmap
 
 - **Phase 2 (done):** voice with hands-free auto-stop and hold-to-talk, automatic correction of your repo names, a fact-grounded daily brief, and formatted transcripts.
-- **Phase 3:** an email assistant (sorts email, finds job invites, writes drafts and never sends them), plus schedules and routines.
+- **Phase 3 (done):** email assistant with draft-only replies, plus routines.
 - **Phase 4:** signed installers for Windows, macOS and Linux, and a demo mode.
 
 ## Security
