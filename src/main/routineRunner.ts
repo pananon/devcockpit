@@ -20,6 +20,7 @@ function briefMarkdown(b: Brief): string {
 }
 
 async function askLocal(prompt: string, onProgress: (t: string) => void): Promise<string> {
+  if (!getSettings().localAi) throw new Error('Skipped: local AI is off. Turn it on from the status bar or Settings to run this routine.');
   const status = await ollamaStatus();
   const model = getSettings().localModel ?? status.models[0]?.name;
   if (!status.running || !model) throw new Error('Ollama is not running or has no model. Set it up in the Local AI tab.');

@@ -401,8 +401,9 @@ const claudeReplay = (cwd: string, prompt?: string) =>
     '> ',
   ].join('\r\n');
 
+let localAi = true;
 export function demoSettings(): Settings {
-  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true };
+  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true, localAi };
 }
 
 /** Fake implementations for every IPC channel, keyed by channel name. */
@@ -443,6 +444,10 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
     'settings:setBackground': () => demoSettings(),
     'settings:setLocalModel': () => demoSettings(),
     'settings:setSaveTodos': () => demoSettings(),
+    'settings:setLocalAi': (on: boolean) => {
+      localAi = on === true;
+      return demoSettings();
+    },
     'todos:add': (repoPath: string, text: string) => {
       REPOS.find((r) => r.path === repoPath)?.todos.unshift(todo(String(text).trim(), 0));
     },
@@ -499,12 +504,12 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
 
     'system:usage': (): SystemUsage => {
       const jitter = (base: number, spread: number) => Math.round(base + (Math.random() - 0.5) * spread);
-      return { cpuPct: jitter(18, 14), ramUsedGB: 15.2 + Math.random() * 0.6, ramTotalGB: 32, gpu: { name: 'NVIDIA GeForce RTX 4070', pct: jitter(12, 16), vramUsedGB: 7.4, vramTotalGB: 12 } };
+      return { cpuPct: jitter(18, 14), ramUsedGB: 15.2 + Math.random() * 0.6, ramTotalGB: 32, gpu: { name: 'NVIDIA GeForce RTX 4070', pct: jitter(12, 16), vramUsedGB: localAi ? 7.4 : 0.9, vramTotalGB: 12 } };
     },
     'ai:scan': () => buildReport(SYSTEM, false) as Promise<ModelReport>,
     'ai:status': () => ollama,
     'ai:start': () => true,
-    'ai:brief': () => new Promise((resolve) => setTimeout(() => resolve(BRIEF), 600)),
+    'ai:brief': () => new Promise((resolve) => setTimeout(() => resolve(localAi ? BRIEF : { ...BRIEF, model: null, usedModel: false }), 600)),
     'ai:pull': (tag: string) => {
       const total = 5.2 * 1024 ** 3;
       let completed = 0;

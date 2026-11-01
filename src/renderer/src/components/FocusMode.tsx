@@ -136,7 +136,7 @@ export function FocusMode({ data, actions, repoPath, onSwitch, onClose }: Props)
             >
               Open shell
             </button>
-            {last && (
+            {last && data.localAi && (
               <button className="btn" onClick={() => (summary.running ? summary.stop() : summary.start({ kind: 'summarize', sessionId: last.id }))}>
                 {summary.running ? 'Stop' : 'Where did I leave off?'}
               </button>

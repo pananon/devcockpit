@@ -113,3 +113,19 @@ export async function chat(
 }
 
 export const cancelChat = (taskId: string) => chats.get(taskId)?.abort();
+
+/** Stops every running chat and frees the GPU/RAM held by loaded models (keep_alive 0 unloads now). */
+export async function unloadAll(): Promise<void> {
+  for (const c of chats.values()) c.abort();
+  try {
+    const res = await fetch(`${base()}/api/ps`, { signal: AbortSignal.timeout(3000) });
+    const { models } = (await res.json()) as { models?: { name: string }[] };
+    await Promise.all(
+      (models ?? []).map((m) =>
+        fetch(`${base()}/api/generate`, { method: 'POST', body: JSON.stringify({ model: m.name, keep_alive: 0 }), signal: AbortSignal.timeout(10000) }).catch(() => undefined)
+      )
+    );
+  } catch {
+    // not running: nothing loaded
+  }
+}

@@ -127,13 +127,13 @@ export function Sessions({ data, actions, focus }: { data: Data; actions: Action
         ))}
       </aside>
       <section className="split-detail">
-        {session ? <SessionDetail session={session} actions={actions} onDelete={() => remove([session.id])} /> : <p className="muted pad">Pick a session to read it.</p>}
+        {session ? <SessionDetail session={session} actions={actions} onDelete={() => remove([session.id])} localAi={data.localAi} /> : <p className="muted pad">Pick a session to read it.</p>}
       </section>
     </div>
   );
 }
 
-function SessionDetail({ session, actions, onDelete }: { session: SessionSummary; actions: Actions; onDelete: () => void }) {
+function SessionDetail({ session, actions, onDelete, localAi }: { session: SessionSummary; actions: Actions; onDelete: () => void; localAi: boolean }) {
   const [items, setItems] = useState<TranscriptItem[] | null>(null);
   const [shown, setShown] = useState(PAGE);
   const [showTools, setShowTools] = useState(false);
@@ -164,9 +164,9 @@ function SessionDetail({ session, actions, onDelete }: { session: SessionSummary
           <button className="btn primary" onClick={() => actions.openClaude(session.repoPath ?? session.cwd, { resumeId: session.id, title: session.title })}>
             Resume
           </button>
-          <button className="btn" onClick={() => (summary.running ? summary.stop() : summary.start({ kind: 'summarize', sessionId: session.id }))}>
+          {localAi && <button className="btn" onClick={() => (summary.running ? summary.stop() : summary.start({ kind: 'summarize', sessionId: session.id }))}>
             {summary.running ? 'Stop' : 'Summarise locally'}
-          </button>
+          </button>}
           <button className="btn danger" onClick={onDelete} title="Move this session's transcript to the Recycle Bin">
             Delete
           </button>

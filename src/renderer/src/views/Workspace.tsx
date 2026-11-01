@@ -245,9 +245,9 @@ function Detail({ repo, section, data, actions, prs, onSection }: { repo: Repo; 
                   {ago(last.updatedAt)} · {plural(last.userTurns, 'prompt')}{last.costUSD != null ? ` · $${last.costUSD.toFixed(2)}` : ''}
                 </div>
                 {last.lastPrompt && <p className="small" style={{ color: '#b9d3e3' }}>Last request: “{last.lastPrompt}”</p>}
-                <button className="btn small" onClick={() => (summary.running ? summary.stop() : summary.start({ kind: 'summarize', sessionId: last.id }))}>
+                {data.localAi && <button className="btn small" onClick={() => (summary.running ? summary.stop() : summary.start({ kind: 'summarize', sessionId: last.id }))}>
                   {summary.running ? 'Stop' : 'Summarise locally'}
-                </button>
+                </button>}
                 <AiOutput {...summary} />
               </>
             )}

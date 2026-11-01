@@ -103,7 +103,7 @@ export function Palette({ data, actions, onClose }: { data: Data; actions: Actio
     if (score(q, 'settings') >= 0) out.push({ id: 'settings', group: 'Go to', label: 'Settings', hint: 'g ,', run: run(() => actions.go('settings')) });
     if (score(q, 'refresh reload') >= 0) out.push({ id: 'refresh', group: 'Commands', label: 'Refresh everything', run: run(actions.refresh) });
 
-    if (q.length > 2) {
+    if (q.length > 2 && data.localAi) {
       const ask: Item = { id: 'ask', group: 'Ask', label: `Ask the local model: “${query.trim()}”`, sub: 'sees your repos, sessions and PRs · no Claude tokens', hint: 'Ctrl+↵', run: run(() => actions.ask(query.trim())) };
       // A question goes first; otherwise it's the fallback at the end.
       if (/\?$|^(what|why|how|when|which|who|is|are|did|do|can|should)\b/i.test(query.trim())) out.unshift({ ...ask, group: 'Best match' });
@@ -142,7 +142,7 @@ export function Palette({ data, actions, onClose }: { data: Data; actions: Actio
           <input
             autoFocus
             aria-label="Search repos, sessions, PRs and actions"
-            placeholder="Jump to a repo, session, PR… or ask a question"
+            placeholder={data.localAi ? 'Jump to a repo, session, PR… or ask a question' : 'Jump to a repo, session or PR…'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKey}
@@ -176,9 +176,11 @@ export function Palette({ data, actions, onClose }: { data: Data; actions: Actio
           <span>
             <span className="kbd">↵</span> open
           </span>
-          <span>
-            <span className="kbd">Ctrl+↵</span> ask the local model
-          </span>
+          {data.localAi && (
+            <span>
+              <span className="kbd">Ctrl+↵</span> ask the local model
+            </span>
+          )}
           <span>
             <span className="kbd">g</span> then a letter jumps anywhere
           </span>

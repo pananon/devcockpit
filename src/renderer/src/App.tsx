@@ -27,6 +27,8 @@ export interface Data {
   sessions: SessionSummary[] | null;
   prs: PrBuckets | null;
   brief: Brief | null;
+  /** the local model is switched on (Settings / status bar) */
+  localAi: boolean;
 }
 
 export interface Actions {
@@ -41,6 +43,7 @@ export interface Actions {
   /** ask the local model from the Today command bar */
   ask: (question: string) => void;
   palette: () => void;
+  setLocalAi: (on: boolean) => Promise<void>;
 }
 
 export const NAV: { view: View; label: string; key: string; icon: () => React.JSX.Element }[] = [
@@ -62,7 +65,7 @@ const typing = (t: EventTarget | null) =>
 export function App() {
   const [view, setView] = useState<View>('today');
   const [focus, setFocus] = useState<string | undefined>();
-  const [data, setData] = useState<Data>({ repos: null, sessions: null, prs: null, brief: null });
+  const [data, setData] = useState<Data>({ repos: null, sessions: null, prs: null, brief: null, localAi: false });
   const [loading, setLoading] = useState(false);
   const [tabs, setTabs] = useState<TermTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -84,6 +87,7 @@ export function App() {
     const c = window.cockpit;
     // Load independently so a slow source (GitHub, the local model) doesn't block the others.
     await Promise.all([
+      c.getSettings().then((s) => setData((d) => ({ ...d, localAi: s.localAi }))),
       c.listRepos().then((repos) => setData((d) => ({ ...d, repos }))),
       c.listSessions().then((sessions) => setData((d) => ({ ...d, sessions }))),
       c.listPrs().then((prs) => setData((d) => ({ ...d, prs }))),
@@ -133,6 +137,12 @@ export function App() {
       setPendingAsk(q);
     },
     palette: () => setPaletteOpen(true),
+    setLocalAi: async (on) => {
+      const s = await window.cockpit.setLocalAi(on);
+      setData((d) => ({ ...d, localAi: s.localAi }));
+      // Re-plan with (or without) the model.
+      window.cockpit.buildBrief().then((brief) => setData((d) => ({ ...d, brief }))).catch(() => undefined);
+    },
   };
 
   const closeTab = (id: string) => {
@@ -250,8 +260,8 @@ export function App() {
             {view === 'todos' && <Todos data={data} actions={actions} currentRepo={currentRepoPath()} />}
             {view === 'insights' && <Insights data={data} actions={actions} />}
             {view === 'routines' && <Routines data={data} />}
-            {view === 'ai' && <LocalAI actions={actions} />}
-            {view === 'settings' && <SettingsView actions={actions} />}
+            {view === 'ai' && <LocalAI data={data} actions={actions} />}
+            {view === 'settings' && <SettingsView data={data} actions={actions} />}
           </main>
           {tabs.length > 0 && (
             <TerminalDock

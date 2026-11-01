@@ -180,7 +180,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
             <span className="label">02 · Mission brief</span>
             <span className="row">
               <span className="label" style={{ color: 'var(--muted)' }}>
-                {brief ? (brief.usedModel ? `priorities by ${brief.model} · local · facts verified` : 'priorities by rules · start Ollama for smarter picks') : ''}
+                {brief ? (brief.usedModel ? `priorities by ${brief.model} · local · facts verified` : data.localAi ? 'priorities by rules · start Ollama for smarter picks' : 'priorities by rules · local AI off') : ''}
               </span>
               <button className="btn small" onClick={rebuild} disabled={rebuilding}>
                 {rebuilding ? 'Thinking…' : 'Re-plan'}
@@ -316,6 +316,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
         </div>
       )}
 
+      {data.localAi && (
       <form
         className="cmdbar"
         style={{ marginTop: 'auto' }}
@@ -339,6 +340,7 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
           </button>
         )}
       </form>
+      )}
     </div>
   );
 }

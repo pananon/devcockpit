@@ -18,7 +18,7 @@
 - **Pull requests**: yours, the ones waiting for your review, and recently merged ones, across every repo. Uses your existing `gh` login.
 - **Built-in terminal**: real Claude Code and shell tabs inside the app (`Ctrl+\``).
 - **Routines**: scheduled jobs (daily brief, questions to the local model, read-only Claude Code tasks), with notifications and an optional tray mode so they run with the window closed.
-- **Local AI**: one click checks your CPU, RAM and GPU and recommends the best model your machine can run through [Ollama](https://ollama.com). Use it for briefs, session summaries and questions about your work, without spending Claude tokens.
+- **Local AI**: one click checks your CPU, RAM and GPU and recommends the best model your machine can run through [Ollama](https://ollama.com). Use it for briefs, session summaries and questions about your work, without spending Claude tokens. It's optional: switch it off from the status bar or Settings and DevCockpit unloads the model (freeing GPU memory) and stops contacting Ollama. The brief then uses simple rules, and Ask and summaries are hidden.
 
 ## Roadmap
 

@@ -919,3 +919,34 @@ button.chip.on {
   background: rgba(255, 107, 138, 0.12);
   border-color: var(--danger);
 }
+
+/* ---------- Local AI switch (status bar) ---------- */
+.ai-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.statusbar .ai-toggle {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border: 1px solid #4b5a68;
+  background: #0b1624;
+}
+.ai-toggle .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  background: #4b5a68;
+  transition: left 0.15s;
+}
+.statusbar .ai-toggle.on {
+  border-color: var(--ok);
+}
+.ai-toggle.on .knob {
+  left: 14px;
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+}

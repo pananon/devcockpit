@@ -21,6 +21,7 @@ const api: CockpitApi = {
   addTodo: (repoPath, text) => ipcRenderer.invoke('todos:add', repoPath, text),
   completeTodo: (repoPath, todo) => ipcRenderer.invoke('todos:complete', repoPath, todo),
   setSaveTodos: (on) => ipcRenderer.invoke('settings:setSaveTodos', on),
+  setLocalAi: (on) => ipcRenderer.invoke('settings:setLocalAi', on),
   listPrs: () => ipcRenderer.invoke('prs:list'),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   termCreate: (spec) => ipcRenderer.invoke('term:create', spec),

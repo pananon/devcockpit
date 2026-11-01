@@ -10,7 +10,7 @@ import { buildBrief } from './brief';
 import { demoHandlers } from './demo';
 import { buildReport, isValidTag } from './models';
 import * as ollama from './ollama';
-import { startOllama } from './ollamaInstall';
+import { startOllama, stopOurOllama } from './ollamaInstall';
 import { listPrs } from './prs';
 import { createTerminal, killAll, killTerminal, resizeTerminal, writeTerminal } from './pty';
 import { findRepos, listRepos } from './repos';
@@ -176,6 +176,16 @@ function registerIpc() {
   handle('todos:complete', (repoPath: unknown, todo: any) =>
     completeTodo(str(repoPath), { file: str(todo?.file, 64), text: str(todo?.text, 2000), line: Number(todo?.line), addedAt: null })
   );
+  handle('settings:setLocalAi', async (on: unknown) => {
+    const next = saveSettings({ ...getSettings(), localAi: on === true });
+    if (next.localAi) {
+      if (!(await ollama.status()).running) startOllama();
+    } else {
+      await ollama.unloadAll();
+      stopOurOllama();
+    }
+    return next;
+  });
   handle('settings:setSaveTodos', (on: unknown) => saveSettings({ ...getSettings(), saveTodos: on === true }));
   handle('prs:list', () => listPrs(true));
   handle('shell:openExternal', async (url: unknown) => {
@@ -212,9 +222,10 @@ function registerIpc() {
         : { kind: 'ask', prompt: str((task as { prompt?: unknown })?.prompt, 20000) };
     const taskId = randomUUID();
     const send = (e: object) => win?.webContents.send('ai:event', { taskId, ...e });
-    const status = await ollama.status();
-    const model = getSettings().localModel ?? status.models[0]?.name ?? null;
-    if (!status.running) setImmediate(() => send({ done: true, error: "Ollama isn't running. Open the Local AI tab to set it up." }));
+    const status = getSettings().localAi ? await ollama.status() : null;
+    const model = getSettings().localModel ?? status?.models[0]?.name ?? null;
+    if (!status) setImmediate(() => send({ done: true, error: 'Local AI is off. Turn it on from the status bar or Settings.' }));
+    else if (!status.running) setImmediate(() => send({ done: true, error: "Ollama isn't running. Open the Local AI tab to set it up." }));
     else if (!model) setImmediate(() => send({ done: true, error: 'No local model yet. Download one in the Local AI tab.' }));
     else
       runTask(

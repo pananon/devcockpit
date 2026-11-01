@@ -10,7 +10,10 @@ const hot = (pct: number) => (pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--w
 export function StatusBar({ data, actions, loading }: { data: Data; actions: Actions; loading: boolean }) {
   const [model, setModel] = useState<{ running: boolean; name: string | null } | null>(null);
 
+  const [switching, setSwitching] = useState(false);
   useEffect(() => {
+    // With local AI off, Ollama is never contacted.
+    if (!data.localAi) return setModel(null);
     const check = () =>
       Promise.all([window.cockpit.ollamaStatus(), window.cockpit.getSettings()]).then(([s, cfg]) =>
         setModel({ running: s.running, name: s.running ? (cfg.localModel ?? s.models[0]?.name ?? null) : null })
@@ -18,7 +21,15 @@ export function StatusBar({ data, actions, loading }: { data: Data; actions: Act
     check();
     const t = setInterval(check, 60_000);
     return () => clearInterval(t);
-  }, []);
+  }, [data.localAi]);
+  const toggleAi = async () => {
+    setSwitching(true);
+    try {
+      await actions.setLocalAi(!data.localAi);
+    } finally {
+      setSwitching(false);
+    }
+  };
 
   const [load, setLoad] = useState<SystemUsage | null>(null);
   useEffect(() => {
@@ -72,10 +83,21 @@ export function StatusBar({ data, actions, loading }: { data: Data; actions: Act
           )}
         </span>
       )}
-      <button onClick={() => actions.go('ai')} title="Local AI">
-        <span className="led" style={{ background: model?.running ? 'var(--ok)' : '#4b5a68', marginRight: 6 }} />
-        {model?.running ? model.name ?? 'no model' : 'local AI off'}
-      </button>
+      <span className="ai-switch">
+        <button
+          className={`ai-toggle ${data.localAi ? 'on' : ''}`}
+          onClick={toggleAi}
+          disabled={switching}
+          role="switch"
+          aria-checked={data.localAi}
+          title={data.localAi ? 'Turn local AI off: unloads the model and frees GPU memory' : 'Turn local AI on'}
+        >
+          <span className="knob" />
+        </button>
+        <button onClick={() => actions.go('ai')} title="Local AI settings">
+          {switching ? (data.localAi ? 'unloading…' : 'starting…') : !data.localAi ? 'local AI off' : model?.running ? (model.name ?? 'no model') : 'Ollama not running'}
+        </button>
+      </span>
       <button onClick={() => actions.go('prs')}>
         {mine} PRs · <span style={{ color: reviews ? 'var(--warn)' : 'inherit' }}>{reviews} reviews</span>
       </button>

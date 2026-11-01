@@ -84,6 +84,8 @@ export interface Settings {
   backgroundMode: boolean;
   /** Claude sessions opened from DevCockpit may add todos to the repo's TODO.md when asked */
   saveTodos: boolean;
+  /** false = no local model: the brief uses rules, Ask and summaries are hidden, Ollama is never contacted */
+  localAi: boolean;
 }
 
 export interface TerminalSpec {
@@ -243,6 +245,8 @@ export interface CockpitApi {
   addTodo(repoPath: string, text: string): Promise<void>;
   completeTodo(repoPath: string, todo: Todo): Promise<void>;
   setSaveTodos(on: boolean): Promise<Settings>;
+  /** turning off unloads the model from memory and stops the Ollama server if DevCockpit started it */
+  setLocalAi(on: boolean): Promise<Settings>;
   listPrs(): Promise<PrBuckets>;
   openExternal(url: string): Promise<void>;
   termCreate(spec: TerminalSpec): Promise<string>;
