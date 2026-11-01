@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import type { Brief, Routine } from '@shared/types';
 import { buildBrief } from './brief';
 import { getSettings } from './config';
+import { childEnv } from './exec';
 import { status as ollamaStatus } from './ollama';
 import type { Runner } from './routines';
 import { runTask } from './tasks';
@@ -31,7 +32,7 @@ async function askLocal(prompt: string, onProgress: (t: string) => void): Promis
 function runClaude(prompt: string, cwd: string, onProgress: (t: string) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(cwd)) return reject(new Error(`Folder not found: ${cwd}`));
-    const env = { ...process.env, DEVCOCKPIT_PROMPT: prompt };
+    const env = childEnv({ DEVCOCKPIT_PROMPT: prompt });
     const args = ['--output-format', 'text', '--allowedTools', READ_ONLY_TOOLS];
     const child =
       process.platform === 'win32'

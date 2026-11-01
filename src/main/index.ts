@@ -5,6 +5,7 @@ import path from 'node:path';
 import type { AiTask, RoutineAction, RoutineInput, RoutineRun, RoutineSchedule, Settings, TerminalSpec } from '@shared/types';
 import { applyBackgroundMode, isQuitting, markQuitting, notify, showWindow, startedHidden } from './background';
 import { getSettings, saveSettings } from './config';
+import { APP_ORIGIN, registerAppScheme, serveAppProtocol } from './appProtocol';
 import { buildBrief } from './brief';
 import { buildReport, isValidTag } from './models';
 import * as ollama from './ollama';
@@ -27,8 +28,10 @@ export const APP_USER_MODEL_ID = 'com.pananon.devcockpit';
 if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
 
 const DEV_URL = process.env.ELECTRON_RENDERER_URL;
-const RENDERER_FILE = path.join(__dirname, '../renderer/index.html');
+const RENDERER_DIR = path.join(__dirname, '../renderer');
 let win: BrowserWindow | null = null;
+
+registerAppScheme();
 
 const WEB_PREFERENCES: Electron.WebPreferences = {
   preload: path.join(__dirname, '../preload/index.js'),
@@ -40,20 +43,12 @@ const WEB_PREFERENCES: Electron.WebPreferences = {
   spellcheck: false,
 };
 
-const loadPage = (w: BrowserWindow, hash?: string) => {
-  if (DEV_URL) w.loadURL(hash ? `${DEV_URL}#${hash}` : DEV_URL);
-  else w.loadFile(RENDERER_FILE, hash ? { hash } : undefined);
-};
+const loadPage = (w: BrowserWindow) => w.loadURL(DEV_URL ?? `${APP_ORIGIN}/index.html`);
 
 /** Only our own bundled page (or the local dev server) may call the backend. */
 function isTrustedSender(e: IpcMainInvokeEvent | Electron.IpcMainEvent): boolean {
   const url = e.senderFrame?.url ?? '';
-  if (DEV_URL) return url.startsWith(DEV_URL);
-  try {
-    return path.normalize(new URL(url).pathname.replace(/^\/([A-Za-z]:)/, '$1')) === path.normalize(RENDERER_FILE);
-  } catch {
-    return false;
-  }
+  return DEV_URL ? url.startsWith(DEV_URL) : url.startsWith(`${APP_ORIGIN}/`);
 }
 
 function handle(channel: string, fn: (...args: any[]) => unknown) {
@@ -262,6 +257,7 @@ if (!app.requestSingleInstanceLock()) {
     // Deny every browser permission: camera, microphone, location, notifications, clipboard.
     session.defaultSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(false));
     session.defaultSession.setPermissionCheckHandler(() => false);
+    if (!DEV_URL) serveAppProtocol(RENDERER_DIR);
     registerIpc();
     createWindow();
     startScheduler(runner, onRoutineChange);

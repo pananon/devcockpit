@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import * as pty from 'node-pty';
 import type { TerminalSpec } from '@shared/types';
+import { childEnv } from './exec';
 import { installScript } from './ollamaInstall';
 
 const terms = new Map<string, pty.IPty>();
@@ -48,7 +49,7 @@ export function createTerminal(
     cols: 100,
     rows: 30,
     cwd,
-    env: { ...process.env, TERM_PROGRAM: 'DevCockpit' } as Record<string, string>,
+    env: childEnv({ TERM_PROGRAM: 'DevCockpit' }),
   });
   p.onData((d) => onData(id, d));
   p.onExit(({ exitCode }) => {

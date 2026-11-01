@@ -18,3 +18,19 @@ export async function tryRun(cmd: string, args: string[], cwd?: string, timeout?
     return null;
   }
 }
+
+/**
+ * Environment for terminals and routines. Drops the parent Claude Code session's
+ * variables (session id, messaging token, child-session marker) in case DevCockpit
+ * was itself started from a Claude terminal: leaking them would hand a token to child
+ * processes and make each new Claude session think it's a sub-session that
+ * doesn't save transcripts.
+ */
+export function childEnv(extra: Record<string, string> = {}): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v === undefined || /^claude/i.test(k)) continue;
+    env[k] = v;
+  }
+  return { ...env, ...extra };
+}
