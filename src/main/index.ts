@@ -246,7 +246,7 @@ function registerIpc() {
     const resumeId = spec?.resumeId ? str(spec.resumeId, 64) : undefined;
     const clean: TerminalSpec = {
       // A resumed session reopens where it ran (e.g. its worktree), whatever folder the UI passed.
-      cwd: (resumeId && resumeCwd(resumeId)) || str(spec?.cwd ?? ''),
+      cwd: (resumeId && resumeCwd(resumeId, getSettings().projectRoots)) || str(spec?.cwd ?? ''),
       program: spec?.program === 'shell' || spec?.program === 'ollama-install' ? spec.program : 'claude',
       resumeId,
       prompt: spec?.prompt ? str(spec.prompt, 2000) : undefined,

@@ -335,11 +335,26 @@ export const sessionTitles = (ids: string[]) => ids.map((id) => findIndexed(id)?
 
 /**
  * Where to resume a session: the folder it was started in (the first working
- * directory in its transcript), if that still exists. Sessions started in a git
- * worktree then reopen in that worktree, not the main checkout. null = unknown or gone.
+ * directory in its transcript), so a session started in a git worktree reopens in
+ * that worktree, not the main checkout. The path comes from a transcript file, so
+ * it's only trusted if it resolves to an existing directory inside one of the
+ * user's project folders. null = unknown, gone, or outside them.
  */
-export function resumeCwd(id: string): string | null {
-  const entry = findIndexed(id);
-  const first = entry ? Object.keys(entry.cwdCounts)[0] : undefined;
-  return first && fs.existsSync(first) ? first : null;
+export function resumeCwd(id: string, roots: string[]): string | null {
+  const first = Object.keys(findIndexed(id)?.cwdCounts ?? {})[0];
+  if (!first) return null;
+  try {
+    const real = fs.realpathSync(first);
+    if (!fs.statSync(real).isDirectory()) return null;
+    const allowed = roots.some((r) => {
+      try {
+        return inside(norm(real), norm(fs.realpathSync(r)));
+      } catch {
+        return false;
+      }
+    });
+    return allowed ? real : null;
+  } catch {
+    return null;
+  }
 }
