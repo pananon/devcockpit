@@ -255,6 +255,9 @@ export interface CockpitApi {
   termKill(id: string): void;
   onTermData(cb: (id: string, data: string) => void): () => void;
   onTermExit(cb: (id: string, code: number) => void): () => void;
+  /** clipboard goes through the main process: the page itself has no clipboard permission */
+  clipboardRead(): Promise<string>;
+  clipboardWrite(text: string): void;
   setLocalModel(tag: string | null): Promise<Settings>;
   startOllama(): Promise<boolean>;
   scanModels(): Promise<ModelReport>;

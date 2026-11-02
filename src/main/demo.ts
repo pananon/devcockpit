@@ -21,6 +21,7 @@ import type {
   TerminalSpec,
   TranscriptItem,
 } from '@shared/types';
+import { clipboard } from 'electron';
 import { buildReport } from './models';
 import { nextRun } from './routines';
 import { dayKey } from './sessions';
@@ -573,6 +574,9 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
       }
     },
     'term:resize': () => undefined,
+    // Real clipboard so copy and paste work in demo mode; main gates both behind a real gesture.
+    'clipboard:read': async () => (await clipboard.readText()).slice(0, 1_000_000),
+    'clipboard:write': (text: string) => clipboard.writeText(String(text).slice(0, 1_000_000)),
     'term:kill': (id: string) => {
       terms.delete(id);
     },
