@@ -20,6 +20,7 @@ import { getTranscript, listSessions, resumeCwd, searchSessions, sessionTitles, 
 import { scanSystem, systemUsage } from './system';
 import { runTask } from './tasks';
 import { addTodo, completeTodo } from './todos';
+import { recentGesture, trackGestures, type Gesture } from './gesture';
 
 // Security baseline: every renderer is sandboxed, isolated, and has no Node access.
 app.enableSandbox();
@@ -68,18 +69,19 @@ const impl = (channel: string, fn: (...args: any[]) => unknown) =>
       }))
     : fn;
 
-function handle(channel: string, fn: (...args: any[]) => unknown) {
+function handle(channel: string, fn: (...args: any[]) => unknown, gesture?: Gesture) {
   const run = impl(channel, fn);
   ipcMain.handle(channel, (e, ...args) => {
     if (!isTrustedSender(e)) throw new Error('Untrusted sender');
+    if (gesture && !recentGesture(gesture, e.sender)) throw new Error('No recent ' + gesture);
     return run(...args);
   });
 }
 
-function on(channel: string, fn: (...args: any[]) => void) {
+function on(channel: string, fn: (...args: any[]) => void, gesture?: Gesture) {
   const run = impl(channel, fn);
   ipcMain.on(channel, (e, ...args) => {
-    if (isTrustedSender(e)) run(...args);
+    if (isTrustedSender(e) && (!gesture || recentGesture(gesture, e.sender))) run(...args);
   });
 }
 
@@ -261,9 +263,9 @@ function registerIpc() {
   on('term:resize', (id: unknown, cols: unknown, rows: unknown) => resizeTerminal(str(id, 64), Number(cols), Number(rows)));
   on('term:kill', (id: unknown) => killTerminal(str(id, 64)));
 
-  // Only on an explicit copy or paste in the terminal (selection, right-click, Ctrl+C/V).
-  handle('clipboard:read', async () => (await clipboard.readText()).slice(0, 1_000_000));
-  on('clipboard:write', (text: unknown) => clipboard.writeText(str(text, 1_000_000)));
+  // Gated in main (demo included): only within a second of a real copy or paste gesture.
+  handle('clipboard:read', async () => (await clipboard.readText()).slice(0, 1_000_000), 'paste');
+  on('clipboard:write', (text: unknown) => clipboard.writeText(str(text, 1_000_000)), 'copy');
 }
 
 function createWindow() {
@@ -282,6 +284,7 @@ function createWindow() {
     show: false,
     webPreferences: WEB_PREFERENCES,
   });
+  trackGestures(win.webContents);
   // Started at login in background mode: stay in the tray until opened.
   win.once('ready-to-show', () => !(startedHidden() && getSettings().backgroundMode) && win?.show());
   loadPage(win);

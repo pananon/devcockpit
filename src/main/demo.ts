@@ -574,7 +574,7 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
       }
     },
     'term:resize': () => undefined,
-    // The clipboard is the user's own, so copy and paste work normally in demo mode.
+    // Real clipboard so copy and paste work in demo mode; main gates both behind a real gesture.
     'clipboard:read': async () => (await clipboard.readText()).slice(0, 1_000_000),
     'clipboard:write': (text: string) => clipboard.writeText(String(text).slice(0, 1_000_000)),
     'term:kill': (id: string) => {

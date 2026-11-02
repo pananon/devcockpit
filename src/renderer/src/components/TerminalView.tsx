@@ -30,7 +30,7 @@ export function TerminalView({ id, visible }: { id: string; visible: boolean }) 
       if (text) window.cockpit.clipboardWrite(text);
       return !!text;
     };
-    const paste = () => window.cockpit.clipboardRead().then((text) => text && term.paste(text));
+    const paste = () => window.cockpit.clipboardRead().then((text) => text && term.paste(text)).catch(() => {});
     const selection = term.onSelectionChange(copy);
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown' || !e.ctrlKey || e.altKey) return true;
