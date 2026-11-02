@@ -1,6 +1,6 @@
 {
   "name": "devcockpit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The cockpit for your dev day: Claude Code sessions, repos, PRs and local AI on one screen.",
   "license": "MIT",
   "author": "Hari Mangal Pandey",
