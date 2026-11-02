@@ -22,6 +22,39 @@ export function TerminalView({ id, visible }: { id: string; visible: boolean }) 
     const detach = attach(id, (d) => term.write(d));
     const input = term.onData((d) => window.cockpit.termWrite(id, d));
     const resize = term.onResize(({ cols, rows }) => window.cockpit.termResize(id, cols, rows));
+
+    // Clipboard, Windows Terminal style: selecting copies; right-click copies a selection
+    // or pastes; Ctrl+V pastes; Ctrl+C copies when there's a selection, else interrupts.
+    const copy = () => {
+      const text = term.getSelection();
+      if (text) window.cockpit.clipboardWrite(text);
+      return !!text;
+    };
+    const paste = () => window.cockpit.clipboardRead().then((text) => text && term.paste(text));
+    const selection = term.onSelectionChange(copy);
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== 'keydown' || !e.ctrlKey || e.altKey) return true;
+      const key = e.key.toLowerCase();
+      if (key === 'v') {
+        e.preventDefault();
+        paste();
+        return false;
+      }
+      if (key === 'c' && (e.shiftKey || term.hasSelection())) {
+        copy();
+        term.clearSelection();
+        return false;
+      }
+      return true;
+    });
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      if (term.hasSelection()) {
+        copy();
+        term.clearSelection();
+      } else paste();
+    };
+    host.current!.addEventListener('contextmenu', onContextMenu);
     const ro = new ResizeObserver(() => {
       if (host.current?.offsetParent) fit.fit();
     });
@@ -29,6 +62,8 @@ export function TerminalView({ id, visible }: { id: string; visible: boolean }) 
     requestAnimationFrame(() => fit.fit());
     return () => {
       ro.disconnect();
+      host.current?.removeEventListener('contextmenu', onContextMenu);
+      selection.dispose();
       input.dispose();
       resize.dispose();
       detach();

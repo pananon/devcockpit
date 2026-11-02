@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell, session, type IpcMainInvokeEvent } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, session, type IpcMainInvokeEvent } from 'electron';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -260,6 +260,10 @@ function registerIpc() {
   on('term:write', (id: unknown, data: unknown) => writeTerminal(str(id, 64), str(data, 1_000_000)));
   on('term:resize', (id: unknown, cols: unknown, rows: unknown) => resizeTerminal(str(id, 64), Number(cols), Number(rows)));
   on('term:kill', (id: unknown) => killTerminal(str(id, 64)));
+
+  // Only on an explicit copy or paste in the terminal (selection, right-click, Ctrl+C/V).
+  handle('clipboard:read', async () => (await clipboard.readText()).slice(0, 1_000_000));
+  on('clipboard:write', (text: unknown) => clipboard.writeText(str(text, 1_000_000)));
 }
 
 function createWindow() {
