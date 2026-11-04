@@ -29,12 +29,18 @@ async function askLocal(prompt: string, onProgress: (t: string) => void): Promis
   return out;
 }
 
-/** Runs Claude Code headless. The prompt travels in an env var, never through a shell parser. */
+/**
+ * Runs Claude Code headless. The prompt goes in on stdin, never on the command line: on
+ * Windows, cmd.exe (claude.cmd) cuts the line at the first newline and PowerShell 5.1
+ * splits arguments on embedded quotes, which would drop the read-only flags below.
+ */
 function runClaude(prompt: string, cwd: string, onProgress: (t: string) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(cwd)) return reject(new Error(`Folder not found: ${cwd}`));
     const env = childEnv({ DEVCOCKPIT_PROMPT: prompt });
-    const args = ['--output-format', 'text', '--allowedTools', READ_ONLY_TOOLS];
+    // --tools removes every other built-in tool, so the routine stays read-only whatever
+    // default permission mode the person's own settings choose.
+    const args = ['--output-format', 'text', '--tools', READ_ONLY_TOOLS, '--allowedTools', READ_ONLY_TOOLS];
     const child =
       process.platform === 'win32'
         ? spawn(
@@ -43,11 +49,13 @@ function runClaude(prompt: string, cwd: string, onProgress: (t: string) => void)
               '-NoProfile',
               '-NonInteractive',
               '-Command',
-              `$c = Get-Command claude -CommandType Application -ErrorAction Stop | Select-Object -First 1; & $c.Source -p $env:DEVCOCKPIT_PROMPT ${args.join(' ')}`,
+              // Every argument is a fixed string from this file; the prompt stays in an env var and is piped to stdin as UTF-8.
+              `$OutputEncoding = New-Object System.Text.UTF8Encoding $false; $c = Get-Command claude -CommandType Application -ErrorAction Stop | Select-Object -First 1; $env:DEVCOCKPIT_PROMPT | & $c.Source -p ${args.map((a) => `'${a}'`).join(' ')}`,
             ],
-            { cwd, env, windowsHide: true }
+            { cwd, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
           )
-        : spawn('claude', ['-p', prompt, ...args], { cwd, env });
+        : spawn('claude', ['-p', ...args], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    child.stdin?.end(prompt);
     let out = '';
     let err = '';
     const timer = setTimeout(() => child.kill(), CLAUDE_TIMEOUT_MS);
