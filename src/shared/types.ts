@@ -90,6 +90,8 @@ export interface Settings {
   billing: Billing;
   /** monthly subscription price in USD, used when billing is 'subscription' */
   planPrice: number;
+  /** offer to save a skill to the library when a Claude session uses one */
+  skillPrompts: boolean;
 }
 
 /** 'api' = billed per token; 'subscription' = a flat Pro or Max plan. */
@@ -239,6 +241,126 @@ export interface RoutineRun {
   output: string;
 }
 
+/** Where a skill came from: ~/.claude/skills, a repo's .claude/skills, a Claude Code plugin, or GitHub (via the finder). */
+export type SkillSourceKind = 'user' | 'project' | 'plugin' | 'online';
+
+/** Something in a skill worth a look before trusting it. 'danger' items block installing into a repo. */
+export interface SkillFinding {
+  level: 'danger' | 'warn' | 'info';
+  file: string;
+  /** 1-based line, when the finding is about one line */
+  line: number | null;
+  message: string;
+}
+
+export interface SkillFile {
+  /** path inside the skill folder, always with forward slashes */
+  path: string;
+  size: number;
+  /** null for binary files, which can't be reviewed here */
+  text: string | null;
+}
+
+/** A skill Claude used in a session that isn't in the library yet, or changed since it was saved. */
+export interface SkillCandidate {
+  /** as Claude invoked it, e.g. "build-awards-website" or "creative-claw:creativeclaw-generate-video" */
+  name: string;
+  description: string;
+  sourceKind: SkillSourceKind;
+  /** e.g. "~/.claude/skills", "repo tatvafit", "plugin creative-claw" */
+  sourceLabel: string;
+  uses: number;
+  lastUsedAt: string;
+  /** repos the sessions that used it belong to */
+  repos: string[];
+  /** saved before, but its source has changed since */
+  changed: boolean;
+  /** time it was last offered in the save prompt, if ever */
+  promptedAt: string | null;
+}
+
+/** Everything needed to decide whether to trust a skill: every file, plus the scanner's findings. */
+export interface SkillReview {
+  name: string;
+  description: string;
+  sourceKind: SkillSourceKind;
+  sourceLabel: string;
+  files: SkillFile[];
+  findings: SkillFinding[];
+  /** SHA-256 of every file's path and bytes; saving refuses if the source no longer matches it */
+  hash: string;
+  totalBytes: number;
+}
+
+export interface LibrarySkill {
+  /** folder name, also the name Claude Code sees once installed */
+  id: string;
+  /** name it was used under */
+  name: string;
+  description: string;
+  sourceKind: SkillSourceKind;
+  sourceLabel: string;
+  savedAt: string;
+  hash: string;
+  fileCount: number;
+  totalBytes: number;
+  findings: SkillFinding[];
+  /** the files on disk no longer match what was saved; installing is blocked */
+  tampered: boolean;
+  /** installed in ~/.claude/skills: 'same' as the library copy, or a 'different' version is there */
+  userInstall: 'same' | 'different' | null;
+  /** repos it was installed into from here */
+  repoInstalls: string[];
+  /** for skills from the finder: the GitHub folder it was downloaded from, at the pinned commit */
+  url: string | null;
+}
+
+/** 'claude' = Claude Code searches the web (uses your Claude plan); 'github' = GitHub code search only, no AI. */
+export type SkillSearchMode = 'claude' | 'github';
+
+/** A skill found online. Everything except `why` and `concerns` was checked by DevCockpit itself on GitHub. */
+export interface SkillSearchResult {
+  /** opaque id; reviewing and saving only accept ids from a search */
+  id: string;
+  /** folder name, and the name it gets in your library */
+  name: string;
+  /** from the SKILL.md at the pinned commit */
+  description: string;
+  /** owner/name on GitHub */
+  repo: string;
+  /** folder holding SKILL.md, '' for the repo root */
+  path: string;
+  /** commit the skill is pinned to: what you review is exactly what gets saved */
+  sha: string;
+  url: string;
+  stars: number;
+  license: string | null;
+  pushedAt: string;
+  archived: boolean;
+  fork: boolean;
+  /** published by Anthropic */
+  official: boolean;
+  /** Claude's reason it fits, and anything it thinks you should check. Written by an AI that read web pages: treat as a hint */
+  why: string;
+  concerns: string;
+  /** the scanner's findings for SKILL.md (the full folder is scanned on review) */
+  findings: SkillFinding[];
+  /** a skill with this folder name is already in your library */
+  inLibrary: boolean;
+}
+
+export interface SkillSearch {
+  results: SkillSearchResult[];
+  /** suggestions thrown away because they weren't on GitHub, didn't exist, or had no SKILL.md */
+  dropped: number;
+  /** API-equivalent cost of Claude's search, when Claude Code reports it */
+  costUSD: number | null;
+  mode: SkillSearchMode;
+}
+
+/** 'user' = ~/.claude/skills, available in every repo; otherwise a repo path from the repo list. */
+export type SkillTarget = 'user' | { repoPath: string };
+
 export interface CockpitApi {
   getSettings(): Promise<Settings>;
   setProjectRoots(roots: string[]): Promise<Settings>;
@@ -287,5 +409,28 @@ export interface CockpitApi {
   listRoutineRuns(): Promise<RoutineRun[]>;
   onRoutineRun(cb: (run: RoutineRun) => void): () => void;
   setBackgroundMode(on: boolean): Promise<Settings>;
+  /** skills Claude used recently that aren't saved (or changed since) */
+  skillCandidates(): Promise<SkillCandidate[]>;
+  /** reads a used skill from disk for review; name must be one from skillCandidates */
+  reviewSkill(name: string): Promise<SkillReview>;
+  /** asks for confirmation, then copies the reviewed skill into the library; refuses if it changed since the review */
+  saveSkill(name: string, hash: string): Promise<LibrarySkill | null>;
+  listLibrary(): Promise<LibrarySkill[]>;
+  /** the library copy's files, for reading */
+  librarySkillFiles(id: string): Promise<SkillReview>;
+  /** asks for confirmation, then copies a library skill into ~/.claude/skills or a repo's .claude/skills */
+  installSkill(id: string, target: SkillTarget): Promise<boolean>;
+  /** asks for confirmation, then moves the library copy to the Recycle Bin (installed copies stay) */
+  removeLibrarySkill(id: string): Promise<boolean>;
+  /** 'later' = don't offer again until it's used again; 'never' = never offer this skill */
+  dismissSkill(name: string, how: 'later' | 'never'): Promise<void>;
+  setSkillPrompts(on: boolean): Promise<Settings>;
+  /** finds skills on GitHub; every result is verified with gh and pinned to a commit */
+  searchSkills(query: string, mode: SkillSearchMode): Promise<SkillSearch>;
+  cancelSkillSearch(): void;
+  /** downloads a search result's whole folder at its pinned commit, for review; nothing is written to disk */
+  reviewOnlineSkill(id: string): Promise<SkillReview>;
+  /** asks for confirmation, then saves the reviewed download to the library; refuses if it differs from the review */
+  saveOnlineSkill(id: string, hash: string): Promise<LibrarySkill | null>;
   onNavigate(cb: (view: string) => void): () => void;
 }

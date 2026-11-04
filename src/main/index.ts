@@ -20,6 +20,8 @@ import { getTranscript, listSessions, resumeCwd, searchSessions, sessionTitles, 
 import { scanSystem, systemUsage } from './system';
 import { runTask } from './tasks';
 import { addTodo, completeTodo } from './todos';
+import { cancelSearch, reviewOnlineSkill, saveOnlineSkill, searchSkills } from './skillFinder';
+import { candidates, dismissSkill, installSkill, librarySkillFiles, listLibrary, removeLibrarySkill, reviewSkill, saveSkill, type Confirm } from './skills';
 import { recentGesture, trackGestures, type Gesture } from './gesture';
 
 // Security baseline: every renderer is sandboxed, isolated, and has no Node access.
@@ -129,7 +131,41 @@ function cleanRoutine(r: RoutineInput): RoutineInput {
   return { id: r?.id ? str(r.id, 64) : undefined, name: str(r?.name || 'Routine', 80), enabled: r?.enabled !== false, notify: r?.notify !== false, schedule, action };
 }
 
+/** The real gate for anything that writes skills: a native dialog the page can't click for you. */
+const confirmDialog: Confirm = async ({ title, message, detail, ok }) => {
+  const { response } = await dialog.showMessageBox(win!, { type: 'warning', buttons: [ok, 'Cancel'], defaultId: 1, cancelId: 1, title, message, detail, noLink: true });
+  return response === 0;
+};
+const trash = (p: string) => shell.trashItem(p);
+
 function registerIpc() {
+  // Skills library
+  const skillName = (v: unknown) => str(v, 140);
+  handle('skills:candidates', () => candidates());
+  handle('skills:review', (name: unknown) => reviewSkill(skillName(name)));
+  handle('skills:save', (name: unknown, hash: unknown) => {
+    const h = str(hash, 64);
+    if (!/^[0-9a-f]{64}$/.test(h)) throw new Error('Invalid argument');
+    return saveSkill(skillName(name), h, confirmDialog, trash);
+  });
+  handle('skills:library', () => listLibrary());
+  handle('skills:libraryFiles', (id: unknown) => librarySkillFiles(str(id, 64)));
+  handle('skills:install', (id: unknown, target: unknown) => {
+    const t = target === 'user' ? 'user' : { repoPath: str((target as { repoPath?: unknown })?.repoPath) };
+    return installSkill(str(id, 64), t, confirmDialog, trash);
+  });
+  handle('skills:remove', (id: unknown) => removeLibrarySkill(str(id, 64), confirmDialog, trash));
+  handle('skills:dismiss', (name: unknown, how: unknown) => dismissSkill(skillName(name), how === 'never' ? 'never' : 'later'));
+  handle('skills:search', (query: unknown, mode: unknown) => searchSkills(str(query, 300), mode === 'github' ? 'github' : 'claude'));
+  on('skills:cancelSearch', () => cancelSearch());
+  handle('skills:reviewOnline', (id: unknown) => reviewOnlineSkill(str(id, 64)));
+  handle('skills:saveOnline', (id: unknown, hash: unknown) => {
+    const h = str(hash, 64);
+    if (!/^[0-9a-f]{64}$/.test(h)) throw new Error('Invalid argument');
+    return saveOnlineSkill(str(id, 64), h, confirmDialog, trash);
+  });
+  handle('settings:setSkillPrompts', (on: unknown) => saveSettings({ ...getSettings(), skillPrompts: on === true }));
+
   handle('routines:list', () => listRoutines());
   handle('routines:save', (r: RoutineInput) => saveRoutine(cleanRoutine(r)));
   handle('routines:delete', (id: unknown) => deleteRoutine(str(id, 64)));

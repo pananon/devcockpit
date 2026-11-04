@@ -852,3 +852,48 @@ textarea.input {
   overflow: auto;
 }
 
+
+/* Skills */
+.skill-file {
+  margin: 0;
+  max-height: 520px;
+  overflow: auto;
+  padding: 10px 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-family: var(--mono, 'JetBrains Mono', monospace);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.skill-file > div {
+  padding: 0 12px 0 0;
+}
+.skill-file .ln {
+  display: inline-block;
+  width: 40px;
+  padding-right: 10px;
+  text-align: right;
+  color: var(--muted);
+  user-select: none;
+}
+.skill-file .flagged {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+.skill-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 40px;
+  z-index: 50;
+  width: 380px;
+  max-width: calc(100vw - 36px);
+  padding: 14px 16px;
+  /* --panel is translucent; layer it on the solid page colour so nothing shows through */
+  background: linear-gradient(var(--panel), var(--panel)), var(--bg);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.skill-toast .row {
+  margin-top: 10px;
+}

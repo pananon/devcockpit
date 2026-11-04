@@ -14,8 +14,12 @@ import type {
   Routine,
   RoutineInput,
   RoutineRun,
+  LibrarySkill,
   SessionSummary,
   Settings,
+  SkillCandidate,
+  SkillReview,
+  SkillSearchResult,
   SystemInfo,
   SystemUsage,
   TerminalSpec,
@@ -403,11 +407,113 @@ const claudeReplay = (cwd: string, prompt?: string) =>
     '> ',
   ].join('\r\n');
 
+// Skills: two used but unsaved, one already in the library.
+const skillMd = (name: string, description: string, body: string) => `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`;
+const DEMO_SKILLS: Record<string, Omit<SkillReview, 'name'> & { url?: string }> = {
+  'build-awards-website': {
+    description: 'Design and build an award-quality marketing site: bold layout, motion, and a performance budget.',
+    sourceKind: 'user',
+    sourceLabel: '~/.claude/skills',
+    files: [
+      { path: 'SKILL.md', size: 1840, text: skillMd('build-awards-website', 'Design and build an award-quality marketing site: bold layout, motion, and a performance budget.', '# Build an award-quality website\n\n1. Ask for the brand, audience and one reference site.\n2. Sketch three layout directions and let the user pick one.\n3. Build with semantic HTML, fluid type and scroll-linked motion.\n4. Keep Lighthouse performance above 90; check it before finishing.') },
+      { path: 'references/motion.md', size: 920, text: '# Motion rules\n\n- Ease-out for entrances, under 400 ms.\n- Respect prefers-reduced-motion.' },
+    ],
+    findings: [],
+    hash: 'a'.repeat(64),
+    totalBytes: 2760,
+  },
+  'creative-claw:creativeclaw-build-film': {
+    description: 'Produce a multi-shot product film from a script, with narration and an assembled first cut.',
+    sourceKind: 'plugin',
+    sourceLabel: 'plugin creative-claw',
+    files: [
+      { path: 'SKILL.md', size: 2210, text: skillMd('creativeclaw-build-film', 'Produce a multi-shot product film from a script, with narration and an assembled first cut.', '# Build a film\n\nPlan the shots, get approval, then generate each clip and assemble them.\nRun scripts/assemble.sh with the clip list when every shot is approved.') },
+      { path: 'scripts/assemble.sh', size: 310, text: '#!/usr/bin/env bash\nset -euo pipefail\nffmpeg -f concat -safe 0 -i "$1" -c copy out.mp4\n' },
+    ],
+    findings: [
+      { level: 'info', file: 'SKILL.md', line: null, message: "From the creative-claw plugin. It may rely on that plugin's tools or connectors, which aren't copied. Check the plugin's licence before sharing it." },
+      { level: 'warn', file: 'scripts/assemble.sh', line: null, message: 'Script Claude may run. Read it before trusting the skill.' },
+    ],
+    hash: 'b'.repeat(64),
+    totalBytes: 2520,
+  },
+};
+let demoLibrary: LibrarySkill[] = [
+  {
+    id: 'release-notes',
+    name: 'release-notes',
+    description: 'Write release notes from merged PRs since the last tag, grouped by user-facing change.',
+    sourceKind: 'project',
+    sourceLabel: 'repo orbit-api',
+    savedAt: at(24 * 9),
+    hash: 'c'.repeat(64),
+    fileCount: 1,
+    totalBytes: 1210,
+    findings: [],
+    tampered: false,
+    userInstall: 'same',
+    repoInstalls: [repoPath('orbit-api')],
+    url: null,
+  },
+];
+// Finder results: made-up repos, so demo mode never touches the network.
+const ONLINE: (Omit<SkillSearchResult, 'inLibrary' | 'findings'> & { files: SkillReview['files'] })[] = [
+  {
+    id: 'demo-online-1',
+    name: 'webapp-testing',
+    description: 'Test local web apps with Playwright: start the server, click through key flows, and capture screenshots and console errors.',
+    repo: 'anthropics/skills',
+    path: 'skills/webapp-testing',
+    sha: 'e3b1c0d9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3',
+    url: 'https://github.com/anthropics/skills',
+    stars: 18400,
+    license: 'Apache-2.0',
+    pushedAt: at(30),
+    archived: false,
+    fork: false,
+    official: true,
+    why: 'Official Anthropic skill for driving and checking a web app end to end.',
+    concerns: '',
+    files: [{ path: 'SKILL.md', size: 1400, text: skillMd('webapp-testing', 'Test local web apps with Playwright.', '# Web app testing\n\nStart the dev server, open the app with Playwright, walk the main flows and report failures with screenshots.') }],
+  },
+  {
+    id: 'demo-online-2',
+    name: 'landing-page-polish',
+    description: 'Review a landing page for hierarchy, spacing, motion and Core Web Vitals, then apply fixes.',
+    repo: 'studio-north/claude-skills',
+    path: 'landing-page-polish',
+    sha: 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678',
+    url: 'https://github.com/studio-north/claude-skills',
+    stars: 2310,
+    license: 'MIT',
+    pushedAt: at(24 * 6),
+    archived: false,
+    fork: false,
+    official: false,
+    why: 'Focused on making marketing pages look award-ready, with a performance check.',
+    concerns: 'Uses a helper script for Lighthouse; read it first.',
+    files: [
+      { path: 'SKILL.md', size: 1650, text: skillMd('landing-page-polish', 'Review a landing page for hierarchy, spacing, motion and Core Web Vitals.', '# Landing page polish\n\nAudit the page, list the five biggest visual issues, fix them, then run scripts/lighthouse.sh.') },
+      { path: 'scripts/lighthouse.sh', size: 140, text: '#!/usr/bin/env bash\nnpx lighthouse "$1" --only-categories=performance --quiet\n' },
+    ],
+  },
+];
+const demoDismissed = new Set<string>();
+const demoPrompted = new Map<string, string>();
+const demoCandidates = (): SkillCandidate[] =>
+  [
+    { name: 'build-awards-website', uses: 6, lastUsedAt: at(0.05), repos: [repoPath('orbit-web')] },
+    { name: 'creative-claw:creativeclaw-build-film', uses: 3, lastUsedAt: at(20), repos: [repoPath('orbit-web'), repoPath('pocket-ledger')] },
+  ]
+    .filter((c) => !demoDismissed.has(c.name) && !demoLibrary.some((l) => l.name === c.name))
+    .map((c) => ({ ...c, description: DEMO_SKILLS[c.name].description, sourceKind: DEMO_SKILLS[c.name].sourceKind, sourceLabel: DEMO_SKILLS[c.name].sourceLabel, changed: false, promptedAt: demoPrompted.get(c.name) ?? null }));
+
 let localAi = true;
 let billing: Settings['billing'] = 'api';
 let planPrice = 20;
+let skillPrompts = true;
 export function demoSettings(): Settings {
-  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true, localAi, billing, planPrice };
+  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true, localAi, billing, planPrice, skillPrompts };
 }
 
 /** Fake implementations for every IPC channel, keyed by channel name. */
@@ -448,6 +554,115 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
     'settings:setBackground': () => demoSettings(),
     'settings:setLocalModel': () => demoSettings(),
     'settings:setSaveTodos': () => demoSettings(),
+    'settings:setSkillPrompts': (on: unknown) => {
+      skillPrompts = on === true;
+      return demoSettings();
+    },
+    'skills:candidates': () => demoCandidates(),
+    'skills:review': (name: string) => {
+      const s = DEMO_SKILLS[name];
+      if (!s) throw new Error("That skill hasn't been used in any session");
+      return { name, ...s };
+    },
+    // Demo writes nothing to disk: saving and installing only change the in-memory lists.
+    'skills:save': (name: string) => {
+      const s = DEMO_SKILLS[name];
+      if (!s) return null;
+      const saved: LibrarySkill = {
+        id: name.split(':').pop()!,
+        name,
+        description: s.description,
+        sourceKind: s.sourceKind,
+        sourceLabel: s.sourceLabel,
+        savedAt: new Date().toISOString(),
+        hash: s.hash,
+        fileCount: s.files.length,
+        totalBytes: s.totalBytes,
+        findings: s.findings,
+        tampered: false,
+        userInstall: null,
+        repoInstalls: [],
+        url: s.url ?? null,
+      };
+      demoLibrary = [saved, ...demoLibrary.filter((l) => l.id !== saved.id)];
+      return saved;
+    },
+    'skills:search': (query: string, mode: string) =>
+      new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              mode: mode === 'github' ? 'github' : 'claude',
+              dropped: 1,
+              costUSD: mode === 'github' ? null : 0.21,
+              results: ONLINE.map(({ files, ...r }) => ({
+                ...r,
+                why: mode === 'github' ? '' : r.why,
+                concerns: mode === 'github' ? '' : r.concerns,
+                inLibrary: demoLibrary.some((l) => l.id === r.name),
+                findings: files.length > 1 ? [{ level: 'warn' as const, file: 'scripts/lighthouse.sh', line: null, message: 'Script Claude may run. Read it before trusting the skill.' }] : [],
+              })),
+            }),
+          mode === 'github' ? 700 : 2200
+        )
+      ),
+    'skills:cancelSearch': () => undefined,
+    'skills:reviewOnline': (id: string) => {
+      const r = ONLINE.find((x) => x.id === id);
+      if (!r) throw new Error('Search again: that result has expired.');
+      const findings = [
+        { level: 'info' as const, file: 'SKILL.md', line: null, message: `Downloaded from github.com/${r.repo} at commit ${r.sha.slice(0, 7)}. Later changes to the repo don't reach your copy.` },
+        ...(r.files.length > 1 ? [{ level: 'warn' as const, file: 'scripts/lighthouse.sh', line: null, message: 'Script Claude may run. Read it before trusting the skill.' }] : []),
+      ];
+      return { name: r.name, description: r.description, sourceKind: 'online', sourceLabel: `github ${r.repo}`, files: r.files, findings, hash: 'd'.repeat(64), totalBytes: r.files.reduce((n, f) => n + f.size, 0) };
+    },
+    'skills:saveOnline': (id: string) => {
+      const r = ONLINE.find((x) => x.id === id);
+      if (!r) return null;
+      const saved: LibrarySkill = {
+        id: r.name,
+        name: r.name,
+        description: r.description,
+        sourceKind: 'online',
+        sourceLabel: `github ${r.repo}`,
+        savedAt: new Date().toISOString(),
+        hash: 'd'.repeat(64),
+        fileCount: r.files.length,
+        totalBytes: r.files.reduce((n, f) => n + f.size, 0),
+        findings: [],
+        tampered: false,
+        userInstall: null,
+        repoInstalls: [],
+        url: r.url,
+      };
+      demoLibrary = [saved, ...demoLibrary.filter((l) => l.id !== saved.id)];
+      DEMO_SKILLS[r.name] = { description: r.description, sourceKind: 'online', sourceLabel: `github ${r.repo}`, files: r.files, findings: [], hash: saved.hash, totalBytes: saved.totalBytes };
+      return saved;
+    },
+    'skills:library': () => demoLibrary,
+    'skills:libraryFiles': (id: string) => {
+      const l = demoLibrary.find((x) => x.id === id);
+      if (!l) throw new Error('Not in your library');
+      const s = DEMO_SKILLS[l.name];
+      return s
+        ? { name: l.name, ...s }
+        : { name: l.name, description: l.description, sourceKind: l.sourceKind, sourceLabel: l.sourceLabel, files: [{ path: 'SKILL.md', size: l.totalBytes, text: skillMd(l.id, l.description, '# Release notes\n\nList merged PRs since the last tag with gh, group them by what users will notice, and write one line each.') }], findings: [], hash: l.hash, totalBytes: l.totalBytes };
+    },
+    'skills:install': (id: string, target: 'user' | { repoPath: string }) => {
+      const l = demoLibrary.find((x) => x.id === id);
+      if (!l) return false;
+      if (target === 'user') l.userInstall = 'same';
+      else if (!l.repoInstalls.includes(target?.repoPath)) l.repoInstalls.push(target.repoPath);
+      return true;
+    },
+    'skills:remove': (id: string) => {
+      demoLibrary = demoLibrary.filter((l) => l.id !== id);
+      return true;
+    },
+    'skills:dismiss': (name: string, how: string) => {
+      if (how === 'never') demoDismissed.add(name);
+      demoPrompted.set(name, new Date().toISOString());
+    },
     'settings:setBilling': (b: unknown, price: unknown) => {
       billing = b === 'subscription' ? 'subscription' : 'api';
       planPrice = cleanPlanPrice(price);

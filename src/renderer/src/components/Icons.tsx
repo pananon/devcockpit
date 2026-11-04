@@ -47,6 +47,11 @@ export const Icon = {
       <path d="m4.5 16.5 1.5 1.5 2.5-3" />
     </svg>
   ),
+  skills: () => (
+    <svg {...base}>
+      <path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8L3.5 9.2l5.9-.9z" />
+    </svg>
+  ),
   insights: () => (
     <svg {...base}>
       <path d="M4 20h16" />
