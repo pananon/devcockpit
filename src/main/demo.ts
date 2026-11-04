@@ -405,7 +405,7 @@ const claudeReplay = (cwd: string, prompt?: string) =>
 
 let localAi = true;
 let billing: Settings['billing'] = 'api';
-let planPrice = 200;
+let planPrice = 20;
 export function demoSettings(): Settings {
   return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true, localAi, billing, planPrice };
 }

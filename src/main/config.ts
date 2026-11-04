@@ -20,7 +20,7 @@ const DEFAULTS = {
   backgroundMode: false,
   saveTodos: true,
   billing: 'api' as Billing,
-  planPrice: 200,
+  planPrice: 20,
 };
 
 export const MAX_PLAN_PRICE = 10_000;

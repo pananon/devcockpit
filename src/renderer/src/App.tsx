@@ -69,7 +69,7 @@ const typing = (t: EventTarget | null) =>
 export function App() {
   const [view, setView] = useState<View>('today');
   const [focus, setFocus] = useState<string | undefined>();
-  const [data, setData] = useState<Data>({ repos: null, sessions: null, prs: null, brief: null, localAi: false, billing: 'api', planPrice: 200 });
+  const [data, setData] = useState<Data>({ repos: null, sessions: null, prs: null, brief: null, localAi: false, billing: 'api', planPrice: 20 });
   const [loading, setLoading] = useState(false);
   const [tabs, setTabs] = useState<TermTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
