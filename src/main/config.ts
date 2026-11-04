@@ -2,7 +2,7 @@ import { app } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Settings } from '@shared/types';
+import type { Billing, Settings } from '@shared/types';
 import { isInstalledOnDisk } from './ollamaInstall';
 
 const file = () => path.join(app.getPath('userData'), 'settings.json');
@@ -19,7 +19,16 @@ function defaultRoots(): string[] {
 const DEFAULTS = {
   backgroundMode: false,
   saveTodos: true,
+  billing: 'api' as Billing,
+  planPrice: 200,
 };
+
+export const MAX_PLAN_PRICE = 10_000;
+
+/** A whole-dollar monthly price, or the default when the value is unusable. */
+export function cleanPlanPrice(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(Math.round(v), MAX_PLAN_PRICE) : DEFAULTS.planPrice;
+}
 
 export function getSettings(): Settings {
   try {
@@ -32,6 +41,8 @@ export function getSettings(): Settings {
         saveTodos: s.saveTodos !== false,
         // Until chosen, local AI is on only if Ollama is already installed.
         localAi: typeof s.localAi === 'boolean' ? s.localAi : isInstalledOnDisk(),
+        billing: s.billing === 'subscription' ? 'subscription' : 'api',
+        planPrice: cleanPlanPrice(s.planPrice),
       };
     }
   } catch {

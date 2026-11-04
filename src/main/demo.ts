@@ -22,6 +22,7 @@ import type {
   TranscriptItem,
 } from '@shared/types';
 import { clipboard } from 'electron';
+import { cleanPlanPrice } from './config';
 import { buildReport } from './models';
 import { nextRun } from './routines';
 import { dayKey } from './sessions';
@@ -403,8 +404,10 @@ const claudeReplay = (cwd: string, prompt?: string) =>
   ].join('\r\n');
 
 let localAi = true;
+let billing: Settings['billing'] = 'api';
+let planPrice = 200;
 export function demoSettings(): Settings {
-  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true, localAi };
+  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true, localAi, billing, planPrice };
 }
 
 /** Fake implementations for every IPC channel, keyed by channel name. */
@@ -445,6 +448,11 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
     'settings:setBackground': () => demoSettings(),
     'settings:setLocalModel': () => demoSettings(),
     'settings:setSaveTodos': () => demoSettings(),
+    'settings:setBilling': (b: unknown, price: unknown) => {
+      billing = b === 'subscription' ? 'subscription' : 'api';
+      planPrice = cleanPlanPrice(price);
+      return demoSettings();
+    },
     'settings:setLocalAi': (on: boolean) => {
       localAi = on === true;
       return demoSettings();

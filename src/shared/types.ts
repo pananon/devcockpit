@@ -86,7 +86,14 @@ export interface Settings {
   saveTodos: boolean;
   /** false = no local model: the brief uses rules, Ask and summaries are hidden, Ollama is never contacted */
   localAi: boolean;
+  /** how the user pays for Claude Code; costs in session files are always API-equivalent */
+  billing: Billing;
+  /** monthly subscription price in USD, used when billing is 'subscription' */
+  planPrice: number;
 }
+
+/** 'api' = billed per token; 'subscription' = a flat Pro or Max plan. */
+export type Billing = 'api' | 'subscription';
 
 export interface TerminalSpec {
   cwd: string;
@@ -245,6 +252,7 @@ export interface CockpitApi {
   addTodo(repoPath: string, text: string): Promise<void>;
   completeTodo(repoPath: string, todo: Todo): Promise<void>;
   setSaveTodos(on: boolean): Promise<Settings>;
+  setBilling(billing: Billing, planPrice: number): Promise<Settings>;
   /** turning off unloads the model from memory and stops the Ollama server if DevCockpit started it */
   setLocalAi(on: boolean): Promise<Settings>;
   listPrs(): Promise<PrBuckets>;

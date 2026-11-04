@@ -1,6 +1,6 @@
 // Numbers for the Insights view and Today's "this week" strip, all derived from
 // session history (prompts and Claude spend per day) and repo state.
-import type { Repo, SessionSummary } from '@shared/types';
+import type { Billing, Repo, SessionSummary } from '@shared/types';
 import { baseName, samePath } from './util';
 
 const DAY = 86400_000;
@@ -95,6 +95,27 @@ export function goingCold(repos: Repo[], sessions: SessionSummary[]) {
 }
 
 export const money = (n: number) => `$${n >= 1000 ? Math.round(n).toLocaleString() : n.toFixed(2)}`;
+
+// Claude Code records cost at API (per-token) rates, whatever plan the user is on.
+export const COST_LABEL = 'API-equivalent cost';
+
+/** Tooltip explaining what the cost figure means for this user's billing. */
+export function costHint(billing: Billing, planPrice: number): string {
+  return billing === 'subscription'
+    ? `What this usage would cost at Claude API rates. Your $${planPrice}/month plan is not billed per token.`
+    : 'What this usage costs at Claude API rates, as recorded by Claude Code.';
+}
+
+const MONTH_DAYS = 365.25 / 12;
+
+/** The share of a monthly plan price that covers this many days. */
+export const planShare = (planPrice: number, days: number) => (planPrice * days) / MONTH_DAYS;
+
+/** "3.2×": how many times over the plan's share for the period the usage was worth. */
+export function planMultiple(cost: number, planPrice: number, days: number): string {
+  const x = cost / planShare(planPrice, days);
+  return `${x >= 10 ? Math.round(x) : x.toFixed(1)}×`;
+}
 
 /** "almost half of", "most of"… for the headline. */
 export function shareWords(share: number): string {
