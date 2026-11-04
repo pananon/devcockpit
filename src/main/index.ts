@@ -20,6 +20,7 @@ import { getTranscript, listSessions, resumeCwd, searchSessions, sessionTitles, 
 import { scanSystem, systemUsage } from './system';
 import { runTask } from './tasks';
 import { addTodo, completeTodo } from './todos';
+import { cancelSearch, reviewOnlineSkill, saveOnlineSkill, searchSkills } from './skillFinder';
 import { candidates, dismissSkill, installSkill, librarySkillFiles, listLibrary, removeLibrarySkill, reviewSkill, saveSkill, type Confirm } from './skills';
 import { recentGesture, trackGestures, type Gesture } from './gesture';
 
@@ -155,6 +156,14 @@ function registerIpc() {
   });
   handle('skills:remove', (id: unknown) => removeLibrarySkill(str(id, 64), confirmDialog, trash));
   handle('skills:dismiss', (name: unknown, how: unknown) => dismissSkill(skillName(name), how === 'never' ? 'never' : 'later'));
+  handle('skills:search', (query: unknown, mode: unknown) => searchSkills(str(query, 300), mode === 'github' ? 'github' : 'claude'));
+  on('skills:cancelSearch', () => cancelSearch());
+  handle('skills:reviewOnline', (id: unknown) => reviewOnlineSkill(str(id, 64)));
+  handle('skills:saveOnline', (id: unknown, hash: unknown) => {
+    const h = str(hash, 64);
+    if (!/^[0-9a-f]{64}$/.test(h)) throw new Error('Invalid argument');
+    return saveOnlineSkill(str(id, 64), h, confirmDialog, trash);
+  });
   handle('settings:setSkillPrompts', (on: unknown) => saveSettings({ ...getSettings(), skillPrompts: on === true }));
 
   handle('routines:list', () => listRoutines());

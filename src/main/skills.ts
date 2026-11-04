@@ -22,12 +22,12 @@ import { findRepos } from './repos';
 import { hasSecrets, scanSkill } from './skillScan';
 import { configDir, SKILL_NAME, skillUsage } from './sessions';
 
-const MAX_FILES = 200;
-const MAX_FILE_BYTES = 512 * 1024;
-const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
-const MAX_DEPTH = 6;
+export const MAX_FILES = 200;
+export const MAX_FILE_BYTES = 512 * 1024;
+export const MAX_TOTAL_BYTES = 4 * 1024 * 1024;
+export const MAX_DEPTH = 6;
 const SKIP = new Set(['.git', 'node_modules', '.DS_Store', '__pycache__']);
-const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
+export const ID = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 
 export interface Confirm {
   (opts: { title: string; message: string; detail: string; ok: string; danger?: boolean }): Promise<boolean>;
@@ -35,7 +35,7 @@ export interface Confirm {
 
 // ---------- reading a skill folder ----------
 
-interface Loaded {
+export interface Loaded {
   files: SkillFile[];
   buffers: Map<string, Buffer>;
   hash: string;
@@ -74,6 +74,11 @@ function loadFolder(root: string): Loaded {
     }
   };
   walk(root, '', 0);
+  return fromBuffers(buffers, notes, total);
+}
+
+/** Hashes and lists a skill's files (read from disk or downloaded). Paths use forward slashes. */
+export function fromBuffers(buffers: Map<string, Buffer>, notes: SkillFinding[], total: number): Loaded {
   if (!buffers.has('SKILL.md')) throw new Error('No SKILL.md in the skill folder');
   const h = createHash('sha256');
   const files: SkillFile[] = [];
@@ -95,7 +100,7 @@ const tryLoad = (root: string): Loaded | null => {
 };
 
 /** The description from SKILL.md's frontmatter, folded onto one line. */
-function describe(files: SkillFile[]): string {
+export function describe(files: SkillFile[]): string {
   const text = files.find((f) => f.path === 'SKILL.md')?.text ?? '';
   const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
   const m = fm.match(/^description:[ \t]*(.*(?:\r?\n[ \t]+.*)*)/m);
@@ -184,6 +189,8 @@ interface Meta {
   fileCount: number;
   totalBytes: number;
   repoInstalls: string[];
+  /** where an online skill was downloaded from, pinned to a commit */
+  origin?: { repo: string; path: string; sha: string };
 }
 
 interface Manifest {
@@ -296,7 +303,7 @@ async function usedSource(name: string): Promise<Source> {
   return src;
 }
 
-function toReview(name: string, src: { kind: SkillSourceKind; label: string }, loaded: Loaded): SkillReview {
+export function toReview(name: string, src: { kind: SkillSourceKind; label: string }, loaded: Loaded): SkillReview {
   return {
     name,
     description: describe(loaded.files),
@@ -318,15 +325,35 @@ export async function saveSkill(name: string, reviewedHash: string, confirm: Con
   const src = await usedSource(name);
   const loaded = loadFolder(src.dir);
   if (loaded.hash !== reviewedHash) throw new Error('The skill changed since you reviewed it. Review it again.');
-  const id = skillId(name);
-  const review = toReview(name, src, loaded);
+  const saved = await storeInLibrary({ name, id: skillId(name), kind: src.kind, label: src.label }, loaded, confirm, trash);
+  if (saved) {
+    const m = loadManifest();
+    m.prompted[name] = new Date().toISOString();
+    saveManifest(m);
+  }
+  return saved;
+}
+
+/**
+ * Copies reviewed files into the library after a confirmation. The caller has
+ * already checked that `loaded` is exactly what the person reviewed.
+ */
+export async function storeInLibrary(
+  skill: { name: string; id: string; kind: SkillSourceKind; label: string; origin?: Meta['origin']; extra?: string },
+  loaded: Loaded,
+  confirm: Confirm,
+  trash: (p: string) => Promise<void>
+): Promise<LibrarySkill | null> {
+  const id = skillId(skill.id);
+  const review = toReview(skill.name, skill, loaded);
   const m = loadManifest();
   const ok = await confirm({
     title: 'Save skill',
-    message: `Save “${name}” to your DevCockpit library?`,
+    message: `Save “${skill.name}” to your DevCockpit library?`,
     detail:
-      `${loaded.files.length} file${loaded.files.length === 1 ? '' : 's'} from ${src.label}. ${findingSummary(review.findings)}` +
-      (m.skills[id] ? '\n\nThis replaces the copy already in your library.' : '') +
+      `${loaded.files.length} file${loaded.files.length === 1 ? '' : 's'} from ${skill.label}. ${findingSummary(review.findings)}` +
+      (skill.extra ? `\n\n${skill.extra}` : '') +
+      (m.skills[id] ? `\n\nThis replaces “${m.skills[id].name}”, already in your library under the same folder name.` : '') +
       '\n\nSaving only keeps a copy. Nothing is installed until you choose where.',
     ok: 'Save to library',
     danger: count(review.findings, 'danger') > 0,
@@ -334,19 +361,24 @@ export async function saveSkill(name: string, reviewedHash: string, confirm: Con
   if (!ok) return null;
   await writeFolder(path.join(libraryDir(), id), loaded.buffers, trash);
   m.skills[id] = {
-    name,
+    name: skill.name,
     description: review.description,
-    sourceKind: src.kind,
-    sourceLabel: src.label,
+    sourceKind: skill.kind,
+    sourceLabel: skill.label,
     savedAt: new Date().toISOString(),
     hash: loaded.hash,
     fileCount: loaded.files.length,
     totalBytes: loaded.totalBytes,
     repoInstalls: m.skills[id]?.repoInstalls ?? [],
+    origin: skill.origin,
   };
-  m.prompted[name] = new Date().toISOString();
   saveManifest(m);
   return listLibrary().find((s) => s.id === id) ?? null;
+}
+
+/** Library entries by folder name, with the online origin when there is one. */
+export function libraryIndex(): Map<string, { hash: string; origin?: Meta['origin'] }> {
+  return new Map(Object.entries(loadManifest().skills).map(([id, m]) => [id, { hash: m.hash, origin: m.origin }]));
 }
 
 export function listLibrary(): LibrarySkill[] {
@@ -368,6 +400,7 @@ export function listLibrary(): LibrarySkill[] {
         findings: loaded ? [...loaded.notes, ...scanSkill(loaded.files, meta.sourceKind, meta.sourceLabel)] : [],
         tampered: loaded?.hash !== meta.hash,
         userInstall: installed ? (installed.hash === meta.hash ? 'same' : 'different') : null,
+        url: meta.origin ? `https://github.com/${meta.origin.repo}/tree/${meta.origin.sha}${meta.origin.path ? `/${meta.origin.path}` : ''}` : null,
         repoInstalls: meta.repoInstalls.filter((r) => tryLoad(path.join(r, '.claude', 'skills', id))?.hash === meta.hash),
       } satisfies LibrarySkill;
     })

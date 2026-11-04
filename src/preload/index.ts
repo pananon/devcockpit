@@ -61,6 +61,10 @@ const api: CockpitApi = {
   installSkill: (id, target) => ipcRenderer.invoke('skills:install', id, target),
   removeLibrarySkill: (id) => ipcRenderer.invoke('skills:remove', id),
   dismissSkill: (name, how) => ipcRenderer.invoke('skills:dismiss', name, how),
+  searchSkills: (query, mode) => ipcRenderer.invoke('skills:search', query, mode),
+  cancelSkillSearch: () => ipcRenderer.send('skills:cancelSearch'),
+  reviewOnlineSkill: (id) => ipcRenderer.invoke('skills:reviewOnline', id),
+  saveOnlineSkill: (id, hash) => ipcRenderer.invoke('skills:saveOnline', id, hash),
   setSkillPrompts: (on) => ipcRenderer.invoke('settings:setSkillPrompts', on),
   onNavigate: (cb) => listen('nav', cb),
 };

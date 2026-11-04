@@ -241,8 +241,8 @@ export interface RoutineRun {
   output: string;
 }
 
-/** Where a skill was found: ~/.claude/skills, a repo's .claude/skills, or a Claude Code plugin. */
-export type SkillSourceKind = 'user' | 'project' | 'plugin';
+/** Where a skill came from: ~/.claude/skills, a repo's .claude/skills, a Claude Code plugin, or GitHub (via the finder). */
+export type SkillSourceKind = 'user' | 'project' | 'plugin' | 'online';
 
 /** Something in a skill worth a look before trusting it. 'danger' items block installing into a repo. */
 export interface SkillFinding {
@@ -311,6 +311,51 @@ export interface LibrarySkill {
   userInstall: 'same' | 'different' | null;
   /** repos it was installed into from here */
   repoInstalls: string[];
+  /** for skills from the finder: the GitHub folder it was downloaded from, at the pinned commit */
+  url: string | null;
+}
+
+/** 'claude' = Claude Code searches the web (uses your Claude plan); 'github' = GitHub code search only, no AI. */
+export type SkillSearchMode = 'claude' | 'github';
+
+/** A skill found online. Everything except `why` and `concerns` was checked by DevCockpit itself on GitHub. */
+export interface SkillSearchResult {
+  /** opaque id; reviewing and saving only accept ids from a search */
+  id: string;
+  /** folder name, and the name it gets in your library */
+  name: string;
+  /** from the SKILL.md at the pinned commit */
+  description: string;
+  /** owner/name on GitHub */
+  repo: string;
+  /** folder holding SKILL.md, '' for the repo root */
+  path: string;
+  /** commit the skill is pinned to: what you review is exactly what gets saved */
+  sha: string;
+  url: string;
+  stars: number;
+  license: string | null;
+  pushedAt: string;
+  archived: boolean;
+  fork: boolean;
+  /** published by Anthropic */
+  official: boolean;
+  /** Claude's reason it fits, and anything it thinks you should check. Written by an AI that read web pages: treat as a hint */
+  why: string;
+  concerns: string;
+  /** the scanner's findings for SKILL.md (the full folder is scanned on review) */
+  findings: SkillFinding[];
+  /** a skill with this folder name is already in your library */
+  inLibrary: boolean;
+}
+
+export interface SkillSearch {
+  results: SkillSearchResult[];
+  /** suggestions thrown away because they weren't on GitHub, didn't exist, or had no SKILL.md */
+  dropped: number;
+  /** API-equivalent cost of Claude's search, when Claude Code reports it */
+  costUSD: number | null;
+  mode: SkillSearchMode;
 }
 
 /** 'user' = ~/.claude/skills, available in every repo; otherwise a repo path from the repo list. */
@@ -380,5 +425,12 @@ export interface CockpitApi {
   /** 'later' = don't offer again until it's used again; 'never' = never offer this skill */
   dismissSkill(name: string, how: 'later' | 'never'): Promise<void>;
   setSkillPrompts(on: boolean): Promise<Settings>;
+  /** finds skills on GitHub; every result is verified with gh and pinned to a commit */
+  searchSkills(query: string, mode: SkillSearchMode): Promise<SkillSearch>;
+  cancelSkillSearch(): void;
+  /** downloads a search result's whole folder at its pinned commit, for review; nothing is written to disk */
+  reviewOnlineSkill(id: string): Promise<SkillReview>;
+  /** asks for confirmation, then saves the reviewed download to the library; refuses if it differs from the review */
+  saveOnlineSkill(id: string, hash: string): Promise<LibrarySkill | null>;
   onNavigate(cb: (view: string) => void): () => void;
 }

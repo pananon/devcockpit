@@ -19,6 +19,7 @@ import type {
   Settings,
   SkillCandidate,
   SkillReview,
+  SkillSearchResult,
   SystemInfo,
   SystemUsage,
   TerminalSpec,
@@ -408,7 +409,7 @@ const claudeReplay = (cwd: string, prompt?: string) =>
 
 // Skills: two used but unsaved, one already in the library.
 const skillMd = (name: string, description: string, body: string) => `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`;
-const DEMO_SKILLS: Record<string, Omit<SkillReview, 'name'>> = {
+const DEMO_SKILLS: Record<string, Omit<SkillReview, 'name'> & { url?: string }> = {
   'build-awards-website': {
     description: 'Design and build an award-quality marketing site: bold layout, motion, and a performance budget.',
     sourceKind: 'user',
@@ -452,6 +453,49 @@ let demoLibrary: LibrarySkill[] = [
     tampered: false,
     userInstall: 'same',
     repoInstalls: [repoPath('orbit-api')],
+    url: null,
+  },
+];
+// Finder results: made-up repos, so demo mode never touches the network.
+const ONLINE: (Omit<SkillSearchResult, 'inLibrary' | 'findings'> & { files: SkillReview['files'] })[] = [
+  {
+    id: 'demo-online-1',
+    name: 'webapp-testing',
+    description: 'Test local web apps with Playwright: start the server, click through key flows, and capture screenshots and console errors.',
+    repo: 'anthropics/skills',
+    path: 'skills/webapp-testing',
+    sha: 'e3b1c0d9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3',
+    url: 'https://github.com/anthropics/skills',
+    stars: 18400,
+    license: 'Apache-2.0',
+    pushedAt: at(30),
+    archived: false,
+    fork: false,
+    official: true,
+    why: 'Official Anthropic skill for driving and checking a web app end to end.',
+    concerns: '',
+    files: [{ path: 'SKILL.md', size: 1400, text: skillMd('webapp-testing', 'Test local web apps with Playwright.', '# Web app testing\n\nStart the dev server, open the app with Playwright, walk the main flows and report failures with screenshots.') }],
+  },
+  {
+    id: 'demo-online-2',
+    name: 'landing-page-polish',
+    description: 'Review a landing page for hierarchy, spacing, motion and Core Web Vitals, then apply fixes.',
+    repo: 'studio-north/claude-skills',
+    path: 'landing-page-polish',
+    sha: 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678',
+    url: 'https://github.com/studio-north/claude-skills',
+    stars: 2310,
+    license: 'MIT',
+    pushedAt: at(24 * 6),
+    archived: false,
+    fork: false,
+    official: false,
+    why: 'Focused on making marketing pages look award-ready, with a performance check.',
+    concerns: 'Uses a helper script for Lighthouse; read it first.',
+    files: [
+      { path: 'SKILL.md', size: 1650, text: skillMd('landing-page-polish', 'Review a landing page for hierarchy, spacing, motion and Core Web Vitals.', '# Landing page polish\n\nAudit the page, list the five biggest visual issues, fix them, then run scripts/lighthouse.sh.') },
+      { path: 'scripts/lighthouse.sh', size: 140, text: '#!/usr/bin/env bash\nnpx lighthouse "$1" --only-categories=performance --quiet\n' },
+    ],
   },
 ];
 const demoDismissed = new Set<string>();
@@ -538,8 +582,61 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
         tampered: false,
         userInstall: null,
         repoInstalls: [],
+        url: s.url ?? null,
       };
       demoLibrary = [saved, ...demoLibrary.filter((l) => l.id !== saved.id)];
+      return saved;
+    },
+    'skills:search': (query: string, mode: string) =>
+      new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              mode: mode === 'github' ? 'github' : 'claude',
+              dropped: 1,
+              costUSD: mode === 'github' ? null : 0.21,
+              results: ONLINE.map(({ files, ...r }) => ({
+                ...r,
+                why: mode === 'github' ? '' : r.why,
+                concerns: mode === 'github' ? '' : r.concerns,
+                inLibrary: demoLibrary.some((l) => l.id === r.name),
+                findings: files.length > 1 ? [{ level: 'warn' as const, file: 'scripts/lighthouse.sh', line: null, message: 'Script Claude may run. Read it before trusting the skill.' }] : [],
+              })),
+            }),
+          mode === 'github' ? 700 : 2200
+        )
+      ),
+    'skills:cancelSearch': () => undefined,
+    'skills:reviewOnline': (id: string) => {
+      const r = ONLINE.find((x) => x.id === id);
+      if (!r) throw new Error('Search again: that result has expired.');
+      const findings = [
+        { level: 'info' as const, file: 'SKILL.md', line: null, message: `Downloaded from github.com/${r.repo} at commit ${r.sha.slice(0, 7)}. Later changes to the repo don't reach your copy.` },
+        ...(r.files.length > 1 ? [{ level: 'warn' as const, file: 'scripts/lighthouse.sh', line: null, message: 'Script Claude may run. Read it before trusting the skill.' }] : []),
+      ];
+      return { name: r.name, description: r.description, sourceKind: 'online', sourceLabel: `github ${r.repo}`, files: r.files, findings, hash: 'd'.repeat(64), totalBytes: r.files.reduce((n, f) => n + f.size, 0) };
+    },
+    'skills:saveOnline': (id: string) => {
+      const r = ONLINE.find((x) => x.id === id);
+      if (!r) return null;
+      const saved: LibrarySkill = {
+        id: r.name,
+        name: r.name,
+        description: r.description,
+        sourceKind: 'online',
+        sourceLabel: `github ${r.repo}`,
+        savedAt: new Date().toISOString(),
+        hash: 'd'.repeat(64),
+        fileCount: r.files.length,
+        totalBytes: r.files.reduce((n, f) => n + f.size, 0),
+        findings: [],
+        tampered: false,
+        userInstall: null,
+        repoInstalls: [],
+        url: r.url,
+      };
+      demoLibrary = [saved, ...demoLibrary.filter((l) => l.id !== saved.id)];
+      DEMO_SKILLS[r.name] = { description: r.description, sourceKind: 'online', sourceLabel: `github ${r.repo}`, files: r.files, findings: [], hash: saved.hash, totalBytes: saved.totalBytes };
       return saved;
     },
     'skills:library': () => demoLibrary,
