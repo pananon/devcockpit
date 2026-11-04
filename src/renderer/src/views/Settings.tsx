@@ -105,6 +105,20 @@ export function SettingsView({ data, actions }: { data: Data; actions: Actions }
       </section>
 
       <section className="card">
+        <h3>Skills</h3>
+        <label className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start', cursor: 'pointer' }}>
+          <input type="checkbox" checked={data.skillPrompts} onChange={(e) => actions.setSkillPrompts(e.target.checked)} style={{ marginTop: 3 }} />
+          <span>
+            Offer to save skills Claude uses
+            <span className="muted small" style={{ display: 'block', marginTop: 4 }}>
+              When a session (opened here or anywhere else) uses a skill, DevCockpit asks whether to keep it in your library, so you can install it
+              in any repo later. Nothing is saved or installed until you've reviewed it and said yes. The Skills tab works either way.
+            </span>
+          </span>
+        </label>
+      </section>
+
+      <section className="card">
         <h3>Claude billing</h3>
         <p className="muted">
           Claude Code records what each session would cost at API (per-token) rates, so DevCockpit shows it as API-equivalent cost. Tell it how you

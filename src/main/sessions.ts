@@ -8,9 +8,12 @@ import path from 'node:path';
 import readline from 'node:readline';
 import type { SessionSearchHit, SessionSummary, TranscriptItem } from '@shared/types';
 
-const INDEX_VERSION = 2;
+const INDEX_VERSION = 3;
 const MAX_SEARCH_CHARS = 300_000;
 const MAX_FILE_PATHS = 500;
+const MAX_SKILL_USES = 200;
+/** Skill names as Claude Code writes them: "name" or "plugin:name". Anything else is ignored. */
+export const SKILL_NAME = /^[a-z0-9][a-z0-9._-]{0,63}(:[a-z0-9][a-z0-9._-]{0,63})?$/i;
 
 interface Indexed {
   mtimeMs: number;
@@ -19,9 +22,11 @@ interface Indexed {
   cwdCounts: Record<string, number>;
   filePaths: string[];
   searchText: string;
+  /** skills used in the session (Skill tool calls and /skill commands), oldest first */
+  skillUses: { name: string; at: string }[];
 }
 
-const configDir = () => process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+export const configDir = () => process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 const projectsDir = () => path.join(configDir(), 'projects');
 const indexFile = () => path.join(app.getPath('userData'), 'session-index.json');
 
@@ -100,6 +105,12 @@ async function parseSession(file: string, stat: fs.Stats): Promise<Indexed> {
   const costDays: Record<string, number> = {};
   const cwdCounts: Record<string, number> = {};
   const filePaths: string[] = [];
+  const skillUses: { name: string; at: string }[] = [];
+  const useSkill = (name: unknown, at: string | null) => {
+    if (typeof name !== 'string' || skillUses.length >= MAX_SKILL_USES) return;
+    const n = name.trim().replace(/^\//, '');
+    if (SKILL_NAME.test(n)) skillUses.push({ name: n, at: at ?? new Date(stat.mtimeMs).toISOString() });
+  };
   let searchText = '';
 
   const rl = readline.createInterface({ input: fs.createReadStream(file, 'utf8'), crlfDelay: Infinity });
@@ -131,6 +142,9 @@ async function parseSession(file: string, stat: fs.Stats): Promise<Indexed> {
     }
 
     const prompt = humanPrompt(o);
+    // "/build-awards-website" typed by the user. Built-in commands land here too; they're
+    // dropped later because no skill folder matches them.
+    if (prompt?.startsWith('/') && !prompt.includes(' ')) useSkill(prompt, typeof o.timestamp === 'string' ? o.timestamp : null);
     if (prompt) {
       userTurns++;
       const day = dayKey(typeof o.timestamp === 'string' ? o.timestamp : (updatedAt ?? new Date(stat.mtimeMs).toISOString()));
@@ -141,6 +155,7 @@ async function parseSession(file: string, stat: fs.Stats): Promise<Indexed> {
     if (o.type === 'assistant' && !o.isSidechain && Array.isArray(o.message?.content)) {
       for (const b of o.message.content) {
         if (b?.type === 'text' && typeof b.text === 'string' && searchText.length < MAX_SEARCH_CHARS) searchText += `\n${b.text}`;
+        if (b?.type === 'tool_use' && b.name === 'Skill') useSkill(b.input?.skill, typeof o.timestamp === 'string' ? o.timestamp : null);
         if (b?.type === 'tool_use' && filePaths.length < MAX_FILE_PATHS) {
           const p = b.input?.file_path ?? b.input?.notebook_path ?? b.input?.path;
           if (typeof p === 'string' && path.isAbsolute(p)) filePaths.push(p);
@@ -169,6 +184,7 @@ async function parseSession(file: string, stat: fs.Stats): Promise<Indexed> {
     cwdCounts,
     filePaths,
     searchText: searchText.slice(0, MAX_SEARCH_CHARS),
+    skillUses,
   };
 }
 
@@ -255,6 +271,31 @@ export async function listSessions(repos: string[]): Promise<SessionSummary[]> {
     .filter((e) => e.summary.userTurns > 0)
     .map((e) => ({ ...e.summary, ...assignRepo(e, repos) }))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export interface SkillUsage {
+  uses: number;
+  lastUsedAt: string;
+  /** repos (from the repo list) of the sessions that used it */
+  repos: string[];
+}
+
+/** Every skill name seen in the indexed sessions, with how often and where it was used. */
+export async function skillUsage(repos: string[]): Promise<Map<string, SkillUsage>> {
+  await listSessions(repos); // brings the index up to date
+  const out = new Map<string, SkillUsage>();
+  for (const e of loadIndex().values()) {
+    if (!e.skillUses?.length) continue;
+    const { repoPath } = assignRepo(e, repos);
+    for (const u of e.skillUses) {
+      const cur = out.get(u.name) ?? { uses: 0, lastUsedAt: u.at, repos: [] };
+      cur.uses++;
+      if (u.at > cur.lastUsedAt) cur.lastUsedAt = u.at;
+      if (repoPath && !cur.repos.includes(repoPath)) cur.repos.push(repoPath);
+      out.set(u.name, cur);
+    }
+  }
+  return out;
 }
 
 function findIndexed(id: string): Indexed | undefined {

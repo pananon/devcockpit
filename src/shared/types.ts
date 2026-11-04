@@ -90,6 +90,8 @@ export interface Settings {
   billing: Billing;
   /** monthly subscription price in USD, used when billing is 'subscription' */
   planPrice: number;
+  /** offer to save a skill to the library when a Claude session uses one */
+  skillPrompts: boolean;
 }
 
 /** 'api' = billed per token; 'subscription' = a flat Pro or Max plan. */
@@ -239,6 +241,81 @@ export interface RoutineRun {
   output: string;
 }
 
+/** Where a skill was found: ~/.claude/skills, a repo's .claude/skills, or a Claude Code plugin. */
+export type SkillSourceKind = 'user' | 'project' | 'plugin';
+
+/** Something in a skill worth a look before trusting it. 'danger' items block installing into a repo. */
+export interface SkillFinding {
+  level: 'danger' | 'warn' | 'info';
+  file: string;
+  /** 1-based line, when the finding is about one line */
+  line: number | null;
+  message: string;
+}
+
+export interface SkillFile {
+  /** path inside the skill folder, always with forward slashes */
+  path: string;
+  size: number;
+  /** null for binary files, which can't be reviewed here */
+  text: string | null;
+}
+
+/** A skill Claude used in a session that isn't in the library yet, or changed since it was saved. */
+export interface SkillCandidate {
+  /** as Claude invoked it, e.g. "build-awards-website" or "creative-claw:creativeclaw-generate-video" */
+  name: string;
+  description: string;
+  sourceKind: SkillSourceKind;
+  /** e.g. "~/.claude/skills", "repo tatvafit", "plugin creative-claw" */
+  sourceLabel: string;
+  uses: number;
+  lastUsedAt: string;
+  /** repos the sessions that used it belong to */
+  repos: string[];
+  /** saved before, but its source has changed since */
+  changed: boolean;
+  /** time it was last offered in the save prompt, if ever */
+  promptedAt: string | null;
+}
+
+/** Everything needed to decide whether to trust a skill: every file, plus the scanner's findings. */
+export interface SkillReview {
+  name: string;
+  description: string;
+  sourceKind: SkillSourceKind;
+  sourceLabel: string;
+  files: SkillFile[];
+  findings: SkillFinding[];
+  /** SHA-256 of every file's path and bytes; saving refuses if the source no longer matches it */
+  hash: string;
+  totalBytes: number;
+}
+
+export interface LibrarySkill {
+  /** folder name, also the name Claude Code sees once installed */
+  id: string;
+  /** name it was used under */
+  name: string;
+  description: string;
+  sourceKind: SkillSourceKind;
+  sourceLabel: string;
+  savedAt: string;
+  hash: string;
+  fileCount: number;
+  totalBytes: number;
+  findings: SkillFinding[];
+  /** the files on disk no longer match what was saved; installing is blocked */
+  tampered: boolean;
+  /** installed in ~/.claude/skills: 'same' as the library copy, or a 'different' version is there */
+  userInstall: 'same' | 'different' | null;
+  /** repos it was installed into from here */
+  repoInstalls: string[];
+}
+
+/** 'user' = ~/.claude/skills, available in every repo; otherwise a repo path from the repo list. */
+export type SkillTarget = 'user' | { repoPath: string };
+
 export interface CockpitApi {
   getSettings(): Promise<Settings>;
   setProjectRoots(roots: string[]): Promise<Settings>;
@@ -287,5 +364,21 @@ export interface CockpitApi {
   listRoutineRuns(): Promise<RoutineRun[]>;
   onRoutineRun(cb: (run: RoutineRun) => void): () => void;
   setBackgroundMode(on: boolean): Promise<Settings>;
+  /** skills Claude used recently that aren't saved (or changed since) */
+  skillCandidates(): Promise<SkillCandidate[]>;
+  /** reads a used skill from disk for review; name must be one from skillCandidates */
+  reviewSkill(name: string): Promise<SkillReview>;
+  /** asks for confirmation, then copies the reviewed skill into the library; refuses if it changed since the review */
+  saveSkill(name: string, hash: string): Promise<LibrarySkill | null>;
+  listLibrary(): Promise<LibrarySkill[]>;
+  /** the library copy's files, for reading */
+  librarySkillFiles(id: string): Promise<SkillReview>;
+  /** asks for confirmation, then copies a library skill into ~/.claude/skills or a repo's .claude/skills */
+  installSkill(id: string, target: SkillTarget): Promise<boolean>;
+  /** asks for confirmation, then moves the library copy to the Recycle Bin (installed copies stay) */
+  removeLibrarySkill(id: string): Promise<boolean>;
+  /** 'later' = don't offer again until it's used again; 'never' = never offer this skill */
+  dismissSkill(name: string, how: 'later' | 'never'): Promise<void>;
+  setSkillPrompts(on: boolean): Promise<Settings>;
   onNavigate(cb: (view: string) => void): () => void;
 }

@@ -32,6 +32,7 @@
 - **Status bar**: live CPU, RAM, GPU and VRAM use, so you can see when a local model is loaded.
 - **Sessions**: all your Claude Code sessions, grouped by repo and searchable by full text. Read any transcript, **Resume** it in the right folder, or delete old ones (they go to the Recycle Bin, so nothing is lost by accident).
 - **Todos**: every open checklist item in your repos' `TODO.md`, newest first. In a Claude session opened from DevCockpit, say "add that to my todos" and Claude writes it there with today's date; **Continue** starts a new session on it. You can turn this off in Settings.
+- **Skills library**: when Claude uses a skill in any session (like a website-design or product-video skill), DevCockpit offers to save it. You review every file first, with risky lines flagged. Then install it for every repo (`~/.claude/skills`), or into one repo's `.claude/skills` to share it with your team. You can turn the prompt off in Settings.
 - **Pull requests**: yours, the ones waiting for your review, and recently merged ones, across every repo. Uses your existing `gh` login.
 - **Built-in terminal**: real Claude Code and shell tabs inside the app (`Ctrl+\``).
 - **Routines**: scheduled jobs (daily brief, questions to the local model, read-only Claude Code tasks), with notifications and an optional tray mode so they run with the window closed.
@@ -75,6 +76,7 @@ DevCockpit embeds a real terminal, so security comes first:
 - Transcripts are never rendered as HTML.
 - No browser permissions are granted.
 - There's no telemetry and no stored credentials. GitHub access goes through your own `gh` login.
+- Skills are reviewed before they're saved or installed, and a skill that seems to contain a key or token can't be installed into a repo.
 
 See [SECURITY.md](SECURITY.md).
 

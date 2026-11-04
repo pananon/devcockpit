@@ -42,7 +42,7 @@ These are non-negotiable. A PR that breaks one won't be merged, however useful t
 - **Never render untrusted text as HTML.** Transcripts, commit messages, PR titles and model output are rendered as React text. No `dangerouslySetInnerHTML`.
 - **No network servers, no remote code.** The app opens no port, loads no remote scripts, and only talks to Ollama on loopback.
 - **No stored credentials.** GitHub goes through the user's own `gh` login. Features that would need passwords or tokens (email, cloud APIs) are out of scope.
-- **Write only when asked.** DevCockpit changes files only on an explicit user action (adding or ticking a todo, deleting a session to the Recycle Bin). Anything new in that list needs discussion first.
+- **Write only when asked.** DevCockpit changes files only on an explicit user action (adding or ticking a todo, deleting a session to the Recycle Bin, saving or installing a skill after a confirmation dialog). Anything new in that list needs discussion first.
 - **Few dependencies.** The app ships with one runtime dependency (`node-pty`). Adding one needs a strong reason in the PR. Pin exact versions.
 
 See [SECURITY.md](SECURITY.md) for the full threat model. To report a vulnerability, use private reporting, not an issue.

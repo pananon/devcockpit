@@ -14,8 +14,11 @@ import type {
   Routine,
   RoutineInput,
   RoutineRun,
+  LibrarySkill,
   SessionSummary,
   Settings,
+  SkillCandidate,
+  SkillReview,
   SystemInfo,
   SystemUsage,
   TerminalSpec,
@@ -403,11 +406,70 @@ const claudeReplay = (cwd: string, prompt?: string) =>
     '> ',
   ].join('\r\n');
 
+// Skills: two used but unsaved, one already in the library.
+const skillMd = (name: string, description: string, body: string) => `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`;
+const DEMO_SKILLS: Record<string, Omit<SkillReview, 'name'>> = {
+  'build-awards-website': {
+    description: 'Design and build an award-quality marketing site: bold layout, motion, and a performance budget.',
+    sourceKind: 'user',
+    sourceLabel: '~/.claude/skills',
+    files: [
+      { path: 'SKILL.md', size: 1840, text: skillMd('build-awards-website', 'Design and build an award-quality marketing site: bold layout, motion, and a performance budget.', '# Build an award-quality website\n\n1. Ask for the brand, audience and one reference site.\n2. Sketch three layout directions and let the user pick one.\n3. Build with semantic HTML, fluid type and scroll-linked motion.\n4. Keep Lighthouse performance above 90; check it before finishing.') },
+      { path: 'references/motion.md', size: 920, text: '# Motion rules\n\n- Ease-out for entrances, under 400 ms.\n- Respect prefers-reduced-motion.' },
+    ],
+    findings: [],
+    hash: 'a'.repeat(64),
+    totalBytes: 2760,
+  },
+  'creative-claw:creativeclaw-build-film': {
+    description: 'Produce a multi-shot product film from a script, with narration and an assembled first cut.',
+    sourceKind: 'plugin',
+    sourceLabel: 'plugin creative-claw',
+    files: [
+      { path: 'SKILL.md', size: 2210, text: skillMd('creativeclaw-build-film', 'Produce a multi-shot product film from a script, with narration and an assembled first cut.', '# Build a film\n\nPlan the shots, get approval, then generate each clip and assemble them.\nRun scripts/assemble.sh with the clip list when every shot is approved.') },
+      { path: 'scripts/assemble.sh', size: 310, text: '#!/usr/bin/env bash\nset -euo pipefail\nffmpeg -f concat -safe 0 -i "$1" -c copy out.mp4\n' },
+    ],
+    findings: [
+      { level: 'info', file: 'SKILL.md', line: null, message: "From the creative-claw plugin. It may rely on that plugin's tools or connectors, which aren't copied. Check the plugin's licence before sharing it." },
+      { level: 'warn', file: 'scripts/assemble.sh', line: null, message: 'Script Claude may run. Read it before trusting the skill.' },
+    ],
+    hash: 'b'.repeat(64),
+    totalBytes: 2520,
+  },
+};
+let demoLibrary: LibrarySkill[] = [
+  {
+    id: 'release-notes',
+    name: 'release-notes',
+    description: 'Write release notes from merged PRs since the last tag, grouped by user-facing change.',
+    sourceKind: 'project',
+    sourceLabel: 'repo orbit-api',
+    savedAt: at(24 * 9),
+    hash: 'c'.repeat(64),
+    fileCount: 1,
+    totalBytes: 1210,
+    findings: [],
+    tampered: false,
+    userInstall: 'same',
+    repoInstalls: [repoPath('orbit-api')],
+  },
+];
+const demoDismissed = new Set<string>();
+const demoPrompted = new Map<string, string>();
+const demoCandidates = (): SkillCandidate[] =>
+  [
+    { name: 'build-awards-website', uses: 6, lastUsedAt: at(0.05), repos: [repoPath('orbit-web')] },
+    { name: 'creative-claw:creativeclaw-build-film', uses: 3, lastUsedAt: at(20), repos: [repoPath('orbit-web'), repoPath('pocket-ledger')] },
+  ]
+    .filter((c) => !demoDismissed.has(c.name) && !demoLibrary.some((l) => l.name === c.name))
+    .map((c) => ({ ...c, description: DEMO_SKILLS[c.name].description, sourceKind: DEMO_SKILLS[c.name].sourceKind, sourceLabel: DEMO_SKILLS[c.name].sourceLabel, changed: false, promptedAt: demoPrompted.get(c.name) ?? null }));
+
 let localAi = true;
 let billing: Settings['billing'] = 'api';
 let planPrice = 20;
+let skillPrompts = true;
 export function demoSettings(): Settings {
-  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true, localAi, billing, planPrice };
+  return { projectRoots: [ROOT], localModel: 'qwen3.5:9b', backgroundMode: false, saveTodos: true, localAi, billing, planPrice, skillPrompts };
 }
 
 /** Fake implementations for every IPC channel, keyed by channel name. */
@@ -448,6 +510,62 @@ export function demoHandlers(send: Send): Record<string, (...args: any[]) => unk
     'settings:setBackground': () => demoSettings(),
     'settings:setLocalModel': () => demoSettings(),
     'settings:setSaveTodos': () => demoSettings(),
+    'settings:setSkillPrompts': (on: unknown) => {
+      skillPrompts = on === true;
+      return demoSettings();
+    },
+    'skills:candidates': () => demoCandidates(),
+    'skills:review': (name: string) => {
+      const s = DEMO_SKILLS[name];
+      if (!s) throw new Error("That skill hasn't been used in any session");
+      return { name, ...s };
+    },
+    // Demo writes nothing to disk: saving and installing only change the in-memory lists.
+    'skills:save': (name: string) => {
+      const s = DEMO_SKILLS[name];
+      if (!s) return null;
+      const saved: LibrarySkill = {
+        id: name.split(':').pop()!,
+        name,
+        description: s.description,
+        sourceKind: s.sourceKind,
+        sourceLabel: s.sourceLabel,
+        savedAt: new Date().toISOString(),
+        hash: s.hash,
+        fileCount: s.files.length,
+        totalBytes: s.totalBytes,
+        findings: s.findings,
+        tampered: false,
+        userInstall: null,
+        repoInstalls: [],
+      };
+      demoLibrary = [saved, ...demoLibrary.filter((l) => l.id !== saved.id)];
+      return saved;
+    },
+    'skills:library': () => demoLibrary,
+    'skills:libraryFiles': (id: string) => {
+      const l = demoLibrary.find((x) => x.id === id);
+      if (!l) throw new Error('Not in your library');
+      const s = DEMO_SKILLS[l.name];
+      return s
+        ? { name: l.name, ...s }
+        : { name: l.name, description: l.description, sourceKind: l.sourceKind, sourceLabel: l.sourceLabel, files: [{ path: 'SKILL.md', size: l.totalBytes, text: skillMd(l.id, l.description, '# Release notes\n\nList merged PRs since the last tag with gh, group them by what users will notice, and write one line each.') }], findings: [], hash: l.hash, totalBytes: l.totalBytes };
+    },
+    'skills:install': (id: string, target: 'user' | { repoPath: string }) => {
+      const l = demoLibrary.find((x) => x.id === id);
+      if (!l) return false;
+      if (target === 'user') l.userInstall = 'same';
+      else if (!l.repoInstalls.includes(target?.repoPath)) l.repoInstalls.push(target.repoPath);
+      return true;
+    },
+    'skills:remove': (id: string) => {
+      demoLibrary = demoLibrary.filter((l) => l.id !== id);
+      return true;
+    },
+    'skills:dismiss': (name: string, how: string) => {
+      if (how === 'never') demoDismissed.add(name);
+      demoPrompted.set(name, new Date().toISOString());
+    },
     'settings:setBilling': (b: unknown, price: unknown) => {
       billing = b === 'subscription' ? 'subscription' : 'api';
       planPrice = cleanPlanPrice(price);

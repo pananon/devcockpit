@@ -21,6 +21,7 @@ const DEFAULTS = {
   saveTodos: true,
   billing: 'api' as Billing,
   planPrice: 20,
+  skillPrompts: true,
 };
 
 export const MAX_PLAN_PRICE = 10_000;
@@ -43,6 +44,7 @@ export function getSettings(): Settings {
         localAi: typeof s.localAi === 'boolean' ? s.localAi : isInstalledOnDisk(),
         billing: s.billing === 'subscription' ? 'subscription' : 'api',
         planPrice: cleanPlanPrice(s.planPrice),
+        skillPrompts: s.skillPrompts !== false,
       };
     }
   } catch {

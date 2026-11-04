@@ -19,8 +19,10 @@ import { Todos } from './views/Todos';
 import { SettingsView } from './views/Settings';
 import { LocalAI } from './views/LocalAI';
 import { Routines } from './views/Routines';
+import { Skills } from './views/Skills';
+import { SkillPrompt } from './components/SkillPrompt';
 
-export type View = 'today' | 'workspace' | 'sessions' | 'todos' | 'prs' | 'flow' | 'insights' | 'routines' | 'ai' | 'settings';
+export type View = 'today' | 'workspace' | 'sessions' | 'todos' | 'skills' | 'prs' | 'flow' | 'insights' | 'routines' | 'ai' | 'settings';
 
 export interface Data {
   repos: Repo[] | null;
@@ -32,6 +34,8 @@ export interface Data {
   /** how the user pays for Claude, for labelling costs (Settings) */
   billing: Billing;
   planPrice: number;
+  /** offer to save skills Claude uses (Settings) */
+  skillPrompts: boolean;
 }
 
 export interface Actions {
@@ -48,6 +52,7 @@ export interface Actions {
   palette: () => void;
   setLocalAi: (on: boolean) => Promise<void>;
   setBilling: (billing: Billing, planPrice: number) => Promise<void>;
+  setSkillPrompts: (on: boolean) => Promise<void>;
 }
 
 export const NAV: { view: View; label: string; key: string; icon: () => React.JSX.Element }[] = [
@@ -55,6 +60,7 @@ export const NAV: { view: View; label: string; key: string; icon: () => React.JS
   { view: 'workspace', label: 'Workspace', key: 'w', icon: Icon.workspace },
   { view: 'sessions', label: 'Sessions', key: 's', icon: Icon.sessions },
   { view: 'todos', label: 'Todos', key: 'd', icon: Icon.todos },
+  { view: 'skills', label: 'Skills', key: 'k', icon: Icon.skills },
   { view: 'prs', label: 'Pull requests', key: 'p', icon: Icon.prs },
   { view: 'flow', label: 'Flow board', key: 'f', icon: Icon.flow },
   { view: 'insights', label: 'Insights', key: 'i', icon: Icon.insights },
@@ -69,7 +75,7 @@ const typing = (t: EventTarget | null) =>
 export function App() {
   const [view, setView] = useState<View>('today');
   const [focus, setFocus] = useState<string | undefined>();
-  const [data, setData] = useState<Data>({ repos: null, sessions: null, prs: null, brief: null, localAi: false, billing: 'api', planPrice: 20 });
+  const [data, setData] = useState<Data>({ repos: null, sessions: null, prs: null, brief: null, localAi: false, billing: 'api', planPrice: 20, skillPrompts: true });
   const [loading, setLoading] = useState(false);
   const [tabs, setTabs] = useState<TermTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -91,7 +97,7 @@ export function App() {
     const c = window.cockpit;
     // Load independently so a slow source (GitHub, the local model) doesn't block the others.
     await Promise.all([
-      c.getSettings().then((s) => setData((d) => ({ ...d, localAi: s.localAi, billing: s.billing, planPrice: s.planPrice }))),
+      c.getSettings().then((s) => setData((d) => ({ ...d, localAi: s.localAi, billing: s.billing, planPrice: s.planPrice, skillPrompts: s.skillPrompts }))),
       c.listRepos().then((repos) => setData((d) => ({ ...d, repos }))),
       c.listSessions().then((sessions) => setData((d) => ({ ...d, sessions }))),
       c.listPrs().then((prs) => setData((d) => ({ ...d, prs }))),
@@ -150,6 +156,10 @@ export function App() {
     setBilling: async (billing, planPrice) => {
       const s = await window.cockpit.setBilling(billing, planPrice);
       setData((d) => ({ ...d, billing: s.billing, planPrice: s.planPrice }));
+    },
+    setSkillPrompts: async (on) => {
+      const s = await window.cockpit.setSkillPrompts(on);
+      setData((d) => ({ ...d, skillPrompts: s.skillPrompts }));
     },
   };
 
@@ -267,6 +277,7 @@ export function App() {
             {view === 'flow' && <Flow data={data} actions={actions} />}
             {view === 'todos' && <Todos data={data} actions={actions} currentRepo={currentRepoPath()} />}
             {view === 'insights' && <Insights data={data} actions={actions} />}
+            {view === 'skills' && <Skills data={data} actions={actions} focus={focus} />}
             {view === 'routines' && <Routines data={data} />}
             {view === 'ai' && <LocalAI data={data} actions={actions} />}
             {view === 'settings' && <SettingsView data={data} actions={actions} />}
@@ -288,6 +299,7 @@ export function App() {
       </div>
 
       <StatusBar data={data} actions={actions} loading={loading} />
+      <SkillPrompt enabled={data.skillPrompts} onReview={(name) => actions.go('skills', name)} />
 
       {focusRepo !== undefined && <FocusMode data={data} actions={actions} repoPath={focusRepo} onSwitch={(p) => setFocusRepo(p)} onClose={() => setFocusRepo(undefined)} />}
       {paletteOpen && <Palette data={data} actions={actions} onClose={() => setPaletteOpen(false)} />}

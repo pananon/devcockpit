@@ -53,6 +53,15 @@ const api: CockpitApi = {
   listRoutineRuns: () => ipcRenderer.invoke('routines:runs'),
   onRoutineRun: (cb) => listen('routines:run', cb),
   setBackgroundMode: (on) => ipcRenderer.invoke('settings:setBackground', on),
+  skillCandidates: () => ipcRenderer.invoke('skills:candidates'),
+  reviewSkill: (name) => ipcRenderer.invoke('skills:review', name),
+  saveSkill: (name, hash) => ipcRenderer.invoke('skills:save', name, hash),
+  listLibrary: () => ipcRenderer.invoke('skills:library'),
+  librarySkillFiles: (id) => ipcRenderer.invoke('skills:libraryFiles', id),
+  installSkill: (id, target) => ipcRenderer.invoke('skills:install', id, target),
+  removeLibrarySkill: (id) => ipcRenderer.invoke('skills:remove', id),
+  dismissSkill: (name, how) => ipcRenderer.invoke('skills:dismiss', name, how),
+  setSkillPrompts: (on) => ipcRenderer.invoke('settings:setSkillPrompts', on),
   onNavigate: (cb) => listen('nav', cb),
 };
 
