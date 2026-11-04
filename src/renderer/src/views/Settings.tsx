@@ -2,11 +2,26 @@ import { useEffect, useState } from 'react';
 import type { Actions, Data } from '../App';
 import { LOCAL_AI_FEATURES } from './LocalAI';
 
+/** Common Claude plans; "Other" takes any monthly price (team seats, regional pricing, price changes). */
+const PLANS = [
+  { label: 'Pro', price: 20 },
+  { label: 'Max 5×', price: 100 },
+  { label: 'Max 20×', price: 200 },
+];
+
 export function SettingsView({ data, actions }: { data: Data; actions: Actions }) {
   const [roots, setRoots] = useState<string[] | null>(null);
   const [saveTodos, setSaveTodos] = useState(true);
   const [price, setPrice] = useState(String(data.planPrice));
   useEffect(() => setPrice(String(data.planPrice)), [data.planPrice]);
+  const preset = PLANS.find((p) => p.price === data.planPrice);
+  const [custom, setCustom] = useState(!preset);
+  const plan = custom || !preset ? 'other' : String(preset.price);
+  const pickPlan = (value: string) => {
+    if (value === 'other') return setCustom(true);
+    setCustom(false);
+    actions.setBilling('subscription', Number(value));
+  };
   const savePrice = () => {
     const n = Number(price);
     if (Number.isFinite(n) && n > 0) actions.setBilling(data.billing, n);
@@ -122,6 +137,19 @@ export function SettingsView({ data, actions }: { data: Data; actions: Actions }
         </label>
         {data.billing === 'subscription' && (
           <label className="row" style={{ marginTop: 10, marginLeft: 24 }}>
+            <span className="small">Plan</span>
+            <select value={plan} onChange={(e) => pickPlan(e.target.value)} aria-label="Claude plan">
+              {PLANS.map((p) => (
+                <option key={p.price} value={String(p.price)}>
+                  {p.label} · ${p.price}/month
+                </option>
+              ))}
+              <option value="other">Other price…</option>
+            </select>
+          </label>
+        )}
+        {data.billing === 'subscription' && plan === 'other' && (
+          <label className="row" style={{ marginTop: 8, marginLeft: 24 }}>
             <span className="small">Monthly plan price ($)</span>
             <input
               type="number"
