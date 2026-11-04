@@ -35,7 +35,7 @@ const SUBPATH = /^(?:[a-z0-9_.@+-]+\/){0,8}[a-z0-9_.@+-]+$/i;
 /** Claude may search the web, but may only open pages on GitHub. */
 const ALLOWED_TOOLS = ['WebSearch', 'WebFetch(domain:github.com)', 'WebFetch(domain:raw.githubusercontent.com)', 'WebFetch(domain:api.github.com)'];
 /** Belt and braces: everything that could touch this computer is refused outright. */
-const DENIED_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'LS', 'Task', 'Agent', 'Skill', 'TodoWrite', 'KillShell', 'BashOutput'];
+const DENIED_TOOLS = ['Bash', 'PowerShell', 'Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'LS', 'Task', 'Agent', 'Skill', 'TodoWrite', 'KillShell', 'BashOutput'];
 
 /**
  * The search brief. The person's request sits in <request> tags; everything Claude
@@ -88,12 +88,18 @@ export function cancelSearch() {
   active = null;
 }
 
-/** Runs Claude Code headless with only the search tools. The prompt never passes through a shell parser. */
+/**
+ * Runs Claude Code headless with only the search tools. The prompt goes in on stdin, never
+ * on the command line: on Windows, cmd.exe (claude.cmd) cuts the line at the first newline
+ * and PowerShell 5.1 splits arguments on embedded quotes, which would drop the flags below.
+ */
 function runClaude(prompt: string): Promise<{ text: string; costUSD: number | null }> {
   return new Promise((resolve, reject) => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'devcockpit-skill-search-'));
     const env = childEnv({ DEVCOCKPIT_PROMPT: prompt });
-    const args = ['--output-format', 'json', '--max-turns', '30', '--strict-mcp-config', '--allowedTools', ...ALLOWED_TOOLS, '--disallowedTools', ...DENIED_TOOLS];
+    // --tools removes every other built-in tool; dontAsk refuses anything not pre-approved,
+    // whatever default permission mode the person's own settings choose.
+    const args = ['--output-format', 'json', '--max-turns', '30', '--strict-mcp-config', '--permission-mode', 'dontAsk', '--tools', 'WebSearch,WebFetch', '--allowedTools', ...ALLOWED_TOOLS, '--disallowedTools', ...DENIED_TOOLS];
     const child =
       process.platform === 'win32'
         ? spawn(
@@ -102,12 +108,13 @@ function runClaude(prompt: string): Promise<{ text: string; costUSD: number | nu
               '-NoProfile',
               '-NonInteractive',
               '-Command',
-              // Every argument is a fixed string from this file; only the prompt is variable, and it stays in an env var.
-              `$c = Get-Command claude -CommandType Application -ErrorAction Stop | Select-Object -First 1; & $c.Source -p $env:DEVCOCKPIT_PROMPT ${args.map((a) => `'${a}'`).join(' ')}`,
+              // Every argument is a fixed string from this file; the prompt stays in an env var and is piped to stdin as UTF-8.
+              `$OutputEncoding = New-Object System.Text.UTF8Encoding $false; $c = Get-Command claude -CommandType Application -ErrorAction Stop | Select-Object -First 1; $env:DEVCOCKPIT_PROMPT | & $c.Source -p ${args.map((a) => `'${a}'`).join(' ')}`,
             ],
             { cwd, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
           )
-        : spawn('claude', ['-p', prompt, ...args], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+        : spawn('claude', ['-p', ...args], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    child.stdin?.end(prompt);
     let out = '';
     let err = '';
     let cancelled = false;
