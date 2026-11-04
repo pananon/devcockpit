@@ -3,6 +3,7 @@ import type { SessionSearchHit, SessionSummary, TranscriptItem } from '@shared/t
 import type { Actions, Data } from '../App';
 import { AiOutput } from '../components/AiOutput';
 import { Markdown } from '../components/Markdown';
+import { COST_LABEL, costHint } from '../insights';
 import { useAi } from '../useAi';
 import { ago, baseName, plural } from '../util';
 
@@ -127,13 +128,13 @@ export function Sessions({ data, actions, focus }: { data: Data; actions: Action
         ))}
       </aside>
       <section className="split-detail">
-        {session ? <SessionDetail session={session} actions={actions} onDelete={() => remove([session.id])} localAi={data.localAi} /> : <p className="muted pad">Pick a session to read it.</p>}
+        {session ? <SessionDetail session={session} actions={actions} onDelete={() => remove([session.id])} localAi={data.localAi} costTitle={costHint(data.billing, data.planPrice)} /> : <p className="muted pad">Pick a session to read it.</p>}
       </section>
     </div>
   );
 }
 
-function SessionDetail({ session, actions, onDelete, localAi }: { session: SessionSummary; actions: Actions; onDelete: () => void; localAi: boolean }) {
+function SessionDetail({ session, actions, onDelete, localAi, costTitle }: { session: SessionSummary; actions: Actions; onDelete: () => void; localAi: boolean; costTitle: string }) {
   const [items, setItems] = useState<TranscriptItem[] | null>(null);
   const [shown, setShown] = useState(PAGE);
   const [showTools, setShowTools] = useState(false);
@@ -157,7 +158,14 @@ function SessionDetail({ session, actions, onDelete, localAi }: { session: Sessi
           <p className="muted small">
             {session.repoPath ? baseName(session.repoPath) : session.cwd}
             {session.gitBranch && <> · {session.gitBranch}</>} · started {ago(session.startedAt)} · last active {ago(session.updatedAt)} · {plural(session.userTurns, 'prompt')}
-            {session.costUSD != null && <> · ${session.costUSD.toFixed(2)}</>}
+            {session.costUSD != null && (
+              <>
+                {' · '}
+                <span title={costTitle}>
+                  ${session.costUSD.toFixed(2)} {COST_LABEL}
+                </span>
+              </>
+            )}
           </p>
         </div>
         <div className="row">

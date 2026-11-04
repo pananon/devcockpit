@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { AiTask, RoutineAction, RoutineInput, RoutineRun, RoutineSchedule, Settings, TerminalSpec } from '@shared/types';
 import { applyBackgroundMode, isQuitting, markQuitting, notify, showWindow, startedHidden } from './background';
-import { getSettings, saveSettings } from './config';
+import { cleanPlanPrice, getSettings, saveSettings } from './config';
 import { APP_ORIGIN, registerAppScheme, serveAppProtocol } from './appProtocol';
 import { buildBrief } from './brief';
 import { demoHandlers } from './demo';
@@ -189,6 +189,9 @@ function registerIpc() {
     return next;
   });
   handle('settings:setSaveTodos', (on: unknown) => saveSettings({ ...getSettings(), saveTodos: on === true }));
+  handle('settings:setBilling', (billing: unknown, planPrice: unknown) =>
+    saveSettings({ ...getSettings(), billing: billing === 'subscription' ? 'subscription' : 'api', planPrice: cleanPlanPrice(planPrice) })
+  );
   handle('prs:list', () => listPrs(true));
   handle('shell:openExternal', async (url: unknown) => {
     const u = new URL(str(url));

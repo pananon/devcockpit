@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Brief, PrBuckets, Repo, SessionSummary, TerminalSpec } from '@shared/types';
+import type { Billing, Brief, PrBuckets, Repo, SessionSummary, TerminalSpec } from '@shared/types';
 import { FocusMode } from './components/FocusMode';
 import { Icon } from './components/Icons';
 import { Palette } from './components/Palette';
@@ -29,6 +29,9 @@ export interface Data {
   brief: Brief | null;
   /** the local model is switched on (Settings / status bar) */
   localAi: boolean;
+  /** how the user pays for Claude, for labelling costs (Settings) */
+  billing: Billing;
+  planPrice: number;
 }
 
 export interface Actions {
@@ -44,6 +47,7 @@ export interface Actions {
   ask: (question: string) => void;
   palette: () => void;
   setLocalAi: (on: boolean) => Promise<void>;
+  setBilling: (billing: Billing, planPrice: number) => Promise<void>;
 }
 
 export const NAV: { view: View; label: string; key: string; icon: () => React.JSX.Element }[] = [
@@ -65,7 +69,7 @@ const typing = (t: EventTarget | null) =>
 export function App() {
   const [view, setView] = useState<View>('today');
   const [focus, setFocus] = useState<string | undefined>();
-  const [data, setData] = useState<Data>({ repos: null, sessions: null, prs: null, brief: null, localAi: false });
+  const [data, setData] = useState<Data>({ repos: null, sessions: null, prs: null, brief: null, localAi: false, billing: 'api', planPrice: 20 });
   const [loading, setLoading] = useState(false);
   const [tabs, setTabs] = useState<TermTab[]>([]);
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -87,7 +91,7 @@ export function App() {
     const c = window.cockpit;
     // Load independently so a slow source (GitHub, the local model) doesn't block the others.
     await Promise.all([
-      c.getSettings().then((s) => setData((d) => ({ ...d, localAi: s.localAi }))),
+      c.getSettings().then((s) => setData((d) => ({ ...d, localAi: s.localAi, billing: s.billing, planPrice: s.planPrice }))),
       c.listRepos().then((repos) => setData((d) => ({ ...d, repos }))),
       c.listSessions().then((sessions) => setData((d) => ({ ...d, sessions }))),
       c.listPrs().then((prs) => setData((d) => ({ ...d, prs }))),
@@ -142,6 +146,10 @@ export function App() {
       setData((d) => ({ ...d, localAi: s.localAi }));
       // Re-plan with (or without) the model.
       window.cockpit.buildBrief().then((brief) => setData((d) => ({ ...d, brief }))).catch(() => undefined);
+    },
+    setBilling: async (billing, planPrice) => {
+      const s = await window.cockpit.setBilling(billing, planPrice);
+      setData((d) => ({ ...d, billing: s.billing, planPrice: s.planPrice }));
     },
   };
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Repo } from '@shared/types';
 import type { Actions, Data } from '../App';
 import { AiOutput } from '../components/AiOutput';
+import { costHint } from '../insights';
 import { useAi } from '../useAi';
 import { ago, baseName, plural, repoColor, samePath, tint } from '../util';
 
@@ -242,7 +243,8 @@ function Detail({ repo, section, data, actions, prs, onSection }: { repo: Repo; 
               <>
                 <div style={{ fontWeight: 500 }}>{last.title}</div>
                 <div className="mono small muted" style={{ margin: '4px 0 8px' }}>
-                  {ago(last.updatedAt)} · {plural(last.userTurns, 'prompt')}{last.costUSD != null ? ` · $${last.costUSD.toFixed(2)}` : ''}
+                  {ago(last.updatedAt)} · {plural(last.userTurns, 'prompt')}
+                  {last.costUSD != null && <span title={costHint(data.billing, data.planPrice)}> · ${last.costUSD.toFixed(2)} API-eq.</span>}
                 </div>
                 {last.lastPrompt && <p className="small" style={{ color: '#b9d3e3' }}>Last request: “{last.lastPrompt}”</p>}
                 {data.localAi && <button className="btn small" onClick={() => (summary.running ? summary.stop() : summary.start({ kind: 'summarize', sessionId: last.id }))}>
@@ -300,7 +302,7 @@ function Detail({ repo, section, data, actions, prs, onSection }: { repo: Repo; 
                   <div className="title">{s.title}</div>
                   <div className="mono small muted">
                     {ago(s.updatedAt)} · {plural(s.userTurns, 'prompt')}{s.gitBranch ? ` · ${s.gitBranch}` : ''}
-                    {s.costUSD != null ? ` · $${s.costUSD.toFixed(2)}` : ''}
+                    {s.costUSD != null && <span title={costHint(data.billing, data.planPrice)}> · ${s.costUSD.toFixed(2)} API-eq.</span>}
                   </div>
                 </div>
                 <button

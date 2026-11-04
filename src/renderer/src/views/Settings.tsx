@@ -2,9 +2,31 @@ import { useEffect, useState } from 'react';
 import type { Actions, Data } from '../App';
 import { LOCAL_AI_FEATURES } from './LocalAI';
 
+/** Common Claude plans; "Other" takes any monthly price (team seats, regional pricing, price changes). */
+const PLANS = [
+  { label: 'Pro', price: 20 },
+  { label: 'Max 5×', price: 100 },
+  { label: 'Max 20×', price: 200 },
+];
+
 export function SettingsView({ data, actions }: { data: Data; actions: Actions }) {
   const [roots, setRoots] = useState<string[] | null>(null);
   const [saveTodos, setSaveTodos] = useState(true);
+  const [price, setPrice] = useState(String(data.planPrice));
+  useEffect(() => setPrice(String(data.planPrice)), [data.planPrice]);
+  const preset = PLANS.find((p) => p.price === data.planPrice);
+  const [custom, setCustom] = useState(!preset);
+  const plan = custom || !preset ? 'other' : String(preset.price);
+  const pickPlan = (value: string) => {
+    if (value === 'other') return setCustom(true);
+    setCustom(false);
+    actions.setBilling('subscription', Number(value));
+  };
+  const savePrice = () => {
+    const n = Number(price);
+    if (Number.isFinite(n) && n > 0) actions.setBilling(data.billing, n);
+    else setPrice(String(data.planPrice));
+  };
 
   useEffect(() => {
     window.cockpit.getSettings().then((s) => {
@@ -80,6 +102,68 @@ export function SettingsView({ data, actions }: { data: Data; actions: Actions }
             </span>
           </span>
         </label>
+      </section>
+
+      <section className="card">
+        <h3>Claude billing</h3>
+        <p className="muted">
+          Claude Code records what each session would cost at API (per-token) rates, so DevCockpit shows it as API-equivalent cost. Tell it how you
+          pay so the numbers read right.
+        </p>
+        <label className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start', cursor: 'pointer' }}>
+          <input type="radio" name="billing" checked={data.billing === 'api'} onChange={() => actions.setBilling('api', data.planPrice)} style={{ marginTop: 3 }} />
+          <span>
+            API (pay per token)
+            <span className="muted small" style={{ display: 'block', marginTop: 4 }}>
+              The cost shown is close to what you're billed.
+            </span>
+          </span>
+        </label>
+        <label className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start', cursor: 'pointer', marginTop: 8 }}>
+          <input
+            type="radio"
+            name="billing"
+            checked={data.billing === 'subscription'}
+            onChange={() => actions.setBilling('subscription', data.planPrice)}
+            style={{ marginTop: 3 }}
+          />
+          <span>
+            Pro or Max subscription
+            <span className="muted small" style={{ display: 'block', marginTop: 4 }}>
+              You pay a flat monthly price, not per token. Today and Insights also show how many times over your plan's share for the period that
+              usage was worth.
+            </span>
+          </span>
+        </label>
+        {data.billing === 'subscription' && (
+          <label className="row" style={{ marginTop: 10, marginLeft: 24 }}>
+            <span className="small">Plan</span>
+            <select value={plan} onChange={(e) => pickPlan(e.target.value)} aria-label="Claude plan">
+              {PLANS.map((p) => (
+                <option key={p.price} value={String(p.price)}>
+                  {p.label} · ${p.price}/month
+                </option>
+              ))}
+              <option value="other">Other price…</option>
+            </select>
+          </label>
+        )}
+        {data.billing === 'subscription' && plan === 'other' && (
+          <label className="row" style={{ marginTop: 8, marginLeft: 24 }}>
+            <span className="small">Monthly plan price ($)</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              onBlur={savePrice}
+              onKeyDown={(e) => e.key === 'Enter' && savePrice()}
+              style={{ width: 90 }}
+              aria-label="Monthly plan price in US dollars"
+            />
+          </label>
+        )}
       </section>
 
       <section className="card">

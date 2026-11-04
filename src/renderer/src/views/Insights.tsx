@@ -1,5 +1,5 @@
 import type { Actions, Data } from '../App';
-import { dailyByRepo, goingCold, lastDays, money, NO_REPO, shareWords, spendByRepo, windowStats } from '../insights';
+import { COST_LABEL, costHint, dailyByRepo, goingCold, lastDays, money, NO_REPO, planMultiple, shareWords, spendByRepo, windowStats } from '../insights';
 import { plural, repoColor } from '../util';
 
 const DAYS = 14;
@@ -19,6 +19,7 @@ export function Insights({ data, actions }: { data: Data; actions: Actions }) {
   const cold = goingCold(repos, sessions);
   const spend = spendByRepo(sessions);
   const allTime = spend.reduce((n, s) => n + s.spend, 0);
+  const hint = costHint(data.billing, data.planPrice);
 
   // The biggest repos get their own colour in the chart; the rest share one.
   const series = stats.byRepo.slice(0, MAX_SERIES).map((r) => r.repo);
@@ -52,7 +53,7 @@ export function Insights({ data, actions }: { data: Data; actions: Actions }) {
     return (
       <div className="page">
         <h1>Insights</h1>
-        <p className="muted">No Claude Code activity in the last two weeks. Once you've used it, this page shows where your time and spend went.</p>
+        <p className="muted">No Claude Code activity in the last two weeks. Once you've used it, this page shows where your time and usage went.</p>
       </div>
     );
   }
@@ -77,11 +78,12 @@ export function Insights({ data, actions }: { data: Data; actions: Actions }) {
         <div className="ins-stats">
           {[
             [stats.prompts, 'prompts'],
-            [money(stats.spend), 'Claude spend'],
+            [money(stats.spend), COST_LABEL, hint],
+            ...(data.billing === 'subscription' ? [[planMultiple(stats.spend, data.planPrice, DAYS), "of your plan's share", hint]] : []),
             [stats.byRepo.filter((r) => r.repo !== NO_REPO).length, 'repos touched'],
             [stats.sessions, 'sessions'],
-          ].map(([n, label]) => (
-            <div key={label}>
+          ].map(([n, label, title]) => (
+            <div key={label} title={title as string | undefined}>
               <div className="ins-num">{n}</div>
               <div className="label">{label}</div>
             </div>
@@ -168,8 +170,8 @@ export function Insights({ data, actions }: { data: Data; actions: Actions }) {
         </div>
 
         <div className="panel" style={{ padding: '16px 18px' }}>
-          <div className="label" style={{ marginBottom: 12 }}>
-            Claude spend by repo · all time {money(allTime)}
+          <div className="label" style={{ marginBottom: 12 }} title={hint}>
+            {COST_LABEL} by repo · all time {money(allTime)}
           </div>
           {spend.slice(0, 8).map((s) => {
             const repo = repos.find((r) => r.name === s.repo);

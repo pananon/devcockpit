@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Brief, BriefRef, Routine } from '@shared/types';
 import type { Actions, Data } from '../App';
 import { AiOutput } from '../components/AiOutput';
-import { change, money, NO_REPO, weekCompare } from '../insights';
+import { change, COST_LABEL, costHint, money, NO_REPO, planMultiple, weekCompare } from '../insights';
 import { useAi } from '../useAi';
 import { ago, baseName, plural, repoColor, samePath, tint } from '../util';
 
@@ -136,9 +136,12 @@ export function Today({ data, actions, pendingAsk, onAskConsumed, loading }: Pro
           </div>
           {week && (
             <div className="week">
-              <button className="plain" style={{ textAlign: 'left' }} onClick={() => actions.go('insights')} title="Claude spend over the last 7 days">
+              <button className="plain" style={{ textAlign: 'left' }} onClick={() => actions.go('insights')} title={costHint(data.billing, data.planPrice)}>
                 <div className="week-num">{money(week.now.spend)}</div>
-                <div className="label" style={{ fontSize: 10 }}>Claude spend · 7 days</div>
+                <div className="label" style={{ fontSize: 10 }}>{COST_LABEL} · 7 days</div>
+                {data.billing === 'subscription' && (
+                  <div className="mono small muted">{planMultiple(week.now.spend, data.planPrice, 7)} your plan's share</div>
+                )}
                 {spendDelta && (
                   <div className="mono small" style={{ color: spendDelta.up ? 'var(--warn)' : 'var(--ok)' }}>
                     {spendDelta.text} vs {money(week.prev.spend)}
